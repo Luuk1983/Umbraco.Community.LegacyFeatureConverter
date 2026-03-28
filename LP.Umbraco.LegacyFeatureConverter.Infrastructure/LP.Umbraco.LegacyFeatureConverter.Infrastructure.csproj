@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter.Abstractions\LP.Umbraco.LegacyFeatureConverter.Abstractions.csproj" />
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter.Data\LP.Umbraco.LegacyFeatureConverter.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Umbraco.Cms.Infrastructure" Version="13.13.1" />
+  </ItemGroup>
+
+</Project>

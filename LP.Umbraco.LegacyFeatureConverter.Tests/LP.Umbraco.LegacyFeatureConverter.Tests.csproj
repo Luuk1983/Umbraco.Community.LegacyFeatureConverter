@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" Version="4.0.2" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter.Abstractions\LP.Umbraco.LegacyFeatureConverter.Abstractions.csproj" />
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter.Data\LP.Umbraco.LegacyFeatureConverter.Data.csproj" />
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter.Infrastructure\LP.Umbraco.LegacyFeatureConverter.Infrastructure.csproj" />
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter.Converters\LP.Umbraco.LegacyFeatureConverter.Converters.csproj" />
+    <ProjectReference Include="..\LP.Umbraco.LegacyFeatureConverter\LP.Umbraco.LegacyFeatureConverter.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+</Project>

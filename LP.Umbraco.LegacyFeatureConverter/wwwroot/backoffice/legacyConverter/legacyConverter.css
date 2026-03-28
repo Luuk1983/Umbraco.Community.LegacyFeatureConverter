@@ -1,0 +1,190 @@
+/* ===== Converter Cards ===== */
+.lfc-converter-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.lfc-converter-card {
+    border: 1px solid var(--uui-color-border, #e9e9eb);
+    border-radius: 6px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: var(--uui-color-surface, #fff);
+}
+
+.lfc-converter-card:hover {
+    border-color: var(--uui-color-interactive, #2152a3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.lfc-converter-card__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.lfc-converter-card__header h4 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.lfc-converter-card__icon {
+    font-size: 20px;
+    color: var(--uui-color-interactive, #2152a3);
+}
+
+.lfc-converter-card__description {
+    color: var(--uui-color-text-alt, #68676b);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.lfc-converter-card__footer {
+    display: flex;
+    gap: 8px;
+}
+
+/* ===== Wizard Steps ===== */
+.lfc-wizard-steps {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--uui-color-border, #e9e9eb);
+}
+
+.lfc-wizard-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: var(--uui-color-text-alt, #68676b);
+    font-size: 13px;
+}
+
+.lfc-wizard-step.--active {
+    background: var(--uui-color-interactive, #2152a3);
+    color: #fff;
+}
+
+.lfc-wizard-step.--completed {
+    color: var(--uui-color-positive, #46a846);
+}
+
+.lfc-wizard-step__number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.lfc-wizard-step.--active .lfc-wizard-step__number {
+    border-color: #fff;
+}
+
+/* ===== Document Type List ===== */
+.lfc-doctype-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lfc-doctype-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--uui-color-border, #e9e9eb);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.lfc-doctype-item:hover {
+    background: var(--uui-color-surface-alt, #f6f4f4);
+}
+
+.lfc-doctype-item .ml-auto {
+    margin-left: auto;
+}
+
+/* ===== Settings ===== */
+.lfc-setting {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--uui-color-border, #e9e9eb);
+}
+
+.lfc-setting:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.lfc-setting label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 4px;
+}
+
+.lfc-setting p {
+    margin: 4px 0 0 26px;
+    font-size: 13px;
+}
+
+/* ===== Details Grid ===== */
+.lfc-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.lfc-details-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lfc-details-item strong {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--uui-color-text-alt, #68676b);
+}
+
+/* ===== Status Tags ===== */
+.lfc-status--success { color: var(--uui-color-positive, #46a846) !important; }
+.lfc-status--warning { color: var(--uui-color-warning, #fbb040) !important; }
+.lfc-status--danger { color: var(--uui-color-danger, #d42054) !important; }
+.lfc-status--info { color: var(--uui-color-interactive, #2152a3) !important; }
+.lfc-status--muted { color: var(--uui-color-text-alt, #68676b) !important; }
+
+/* ===== Log Entries ===== */
+.lfc-log--error {
+    background: rgba(212, 32, 84, 0.04);
+}
+
+.lfc-log--warning {
+    background: rgba(251, 176, 64, 0.06);
+}
+
+/* ===== Utilities ===== */
+.mr1 { margin-right: 4px; }
+.mr2 { margin-right: 8px; }
+.ml1 { margin-left: 4px; }
+.ml2 { margin-left: 8px; }
+.mb2 { margin-bottom: 8px; }
+.mb3 { margin-bottom: 12px; }
+.db { display: block; }
+.text-success { color: var(--uui-color-positive, #46a846); }
+.text-danger { color: var(--uui-color-danger, #d42054); }
+.text-muted { color: var(--uui-color-text-alt, #68676b); }

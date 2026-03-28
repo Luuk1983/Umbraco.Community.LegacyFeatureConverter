@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<language alias="en" intName="English (US)" localName="English (US)" lcid="" culture="en-US">
+  <creator>
+    <name>LP.Umbraco.LegacyFeatureConverter</name>
+    <link>https://github.com/LuukPeters/UmbracoLegacyFeatureConverter</link>
+  </creator>
+  <area alias="treeHeaders">
+    <key alias="legacyConvertersGroup">Legacy converters</key>
+  </area>
+  <area alias="legacyConverter">
+    <key alias="treeTitle">Property editors</key>
+    <key alias="availableConverters">Available converters</key>
+    <key alias="noConvertersFound">No converters found.</key>
+    <key alias="conversionQueue">Conversion queue</key>
+    <key alias="conversionHistory">Conversion history</key>
+    <key alias="noHistoryFound">No conversions have been run yet.</key>
+    <key alias="converter">Converter</key>
+    <key alias="status">Status</key>
+    <key alias="queuedAt">Queued at</key>
+    <key alias="startedAt">Started</key>
+    <key alias="completedAt">Completed</key>
+    <key alias="results">Results</key>
+    <key alias="testRun">Test run</key>
+    <key alias="documentTypes">document types</key>
+    <key alias="dataTypes">Data types</key>
+    <key alias="contentNodes">Content nodes</key>
+    <key alias="properties">properties</key>
+    <key alias="welcomeTitle">Welcome</key>
+    <key alias="welcomeDescription">This wizard will guide you through converting legacy property editors to their modern equivalents.</key>
+    <key alias="welcomeAffectedCount">Affected document types:</key>
+    <key alias="selectDocumentTypes">Select document types</key>
+    <key alias="selectDocTypesDescription">Select the document types you want to convert. Unselected types will be skipped.</key>
+    <key alias="selectAll">Select all</key>
+    <key alias="selectedDocTypes">Selected document types</key>
+    <key alias="noDocumentTypesFound">No document types with matching properties were found.</key>
+    <key alias="conversionSettings">Conversion settings</key>
+    <key alias="stopOnError">Stop on error</key>
+    <key alias="stopOnErrorDescription">When enabled, the conversion will stop immediately if any item fails. When disabled, failed items will be logged and the conversion continues.</key>
+    <key alias="runTestFirst">Run test first</key>
+    <key alias="runTestFirstDescription">Runs a test conversion first without saving any changes. If the test succeeds, the actual conversion runs automatically. This takes longer but helps catch errors before modifying your data.</key>
+    <key alias="testRunOnly">Test run only (dry run)</key>
+    <key alias="testRunOnlyDescription">Only run a test conversion without saving any changes. Use this to preview what would happen before committing to the actual conversion.</key>
+    <key alias="summary">Summary</key>
+    <key alias="queueConversion">Queue conversion</key>
+    <key alias="logEntries">Log entries</key>
+    <key alias="noLogEntries">No log entries found.</key>
+    <key alias="level">Level</key>
+    <key alias="timestamp">Time</key>
+    <key alias="itemType">Type</key>
+    <key alias="message">Message</key>
+    <key alias="backToOverview">Back to overview</key>
+    <key alias="conversionNotFound">Conversion not found.</key>
+  </area>
+</language>

@@ -1,0 +1,184 @@
+<div ng-controller="legacyConverter.wizard.controller as vm">
+    <umb-editor-view>
+        <umb-editor-header name="model.title"
+                           name-locked="true"
+                           hide-icon="true"
+                           hide-alias="true"
+                           hide-description="true">
+        </umb-editor-header>
+
+        <umb-editor-container>
+            <!-- Step indicator -->
+            <div class="lfc-wizard-steps">
+                <div class="lfc-wizard-step"
+                     ng-repeat="step in vm.steps"
+                     ng-class="{'--active': vm.currentStep === $index, '--completed': $index < vm.currentStep}">
+                    <span class="lfc-wizard-step__number">{{$index + 1}}</span>
+                    <span class="lfc-wizard-step__label">{{step}}</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Welcome -->
+            <div ng-if="vm.currentStep === 0">
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_welcomeTitle"></umb-box-header>
+                    <umb-box-content>
+                        <p><localize key="legacyConverter_welcomeDescription">
+                            This wizard will guide you through converting legacy property editors to their modern equivalents.
+                        </localize></p>
+                        <p><strong>{{model.converter.name}}</strong></p>
+                        <p>{{model.converter.description}}</p>
+                        <p>
+                            <localize key="legacyConverter_welcomeAffectedCount">
+                                Affected document types:
+                            </localize>
+                            <uui-tag color="default" look="secondary">
+                                {{model.converter.affectedDocumentTypesCount}}
+                            </uui-tag>
+                        </p>
+                    </umb-box-content>
+                </umb-box>
+            </div>
+
+            <!-- Step 2: Document Type Selection -->
+            <div ng-if="vm.currentStep === 1">
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_selectDocumentTypes"></umb-box-header>
+                    <umb-box-content>
+                        <umb-load-indicator ng-if="vm.loadingDocTypes"></umb-load-indicator>
+
+                        <umb-empty-state ng-if="!vm.loadingDocTypes && vm.documentTypes.length === 0" size="small">
+                            <localize key="legacyConverter_noDocumentTypesFound">
+                                No document types with matching properties were found.
+                            </localize>
+                        </umb-empty-state>
+
+                        <div ng-if="!vm.loadingDocTypes && vm.documentTypes.length > 0">
+                            <p class="mb3">
+                                <localize key="legacyConverter_selectDocTypesDescription">
+                                    Select the document types you want to convert. Unselected types will be skipped.
+                                </localize>
+                            </p>
+
+                            <div class="lfc-select-all mb2">
+                                <label>
+                                    <input type="checkbox"
+                                           ng-model="vm.selectAll"
+                                           ng-change="vm.toggleSelectAll()">
+                                    <strong><localize key="legacyConverter_selectAll">Select all</localize></strong>
+                                </label>
+                            </div>
+
+                            <div class="lfc-doctype-list">
+                                <label class="lfc-doctype-item"
+                                       ng-repeat="docType in vm.documentTypes">
+                                    <input type="checkbox" ng-model="docType.selected">
+                                    <umb-icon icon="{{docType.icon || 'icon-document'}}" class="mr1"></umb-icon>
+                                    <span>{{docType.name}}</span>
+                                    <small class="text-muted ml1">({{docType.alias}})</small>
+                                    <uui-tag color="default" look="secondary" class="ml-auto">
+                                        {{docType.propertiesCount}}
+                                        <localize key="legacyConverter_properties">properties</localize>
+                                    </uui-tag>
+                                </label>
+                            </div>
+                        </div>
+                    </umb-box-content>
+                </umb-box>
+            </div>
+
+            <!-- Step 3: Settings -->
+            <div ng-if="vm.currentStep === 2">
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_conversionSettings"></umb-box-header>
+                    <umb-box-content>
+                        <div class="lfc-setting">
+                            <label>
+                                <input type="checkbox" ng-model="vm.settings.stopOnError">
+                                <strong><localize key="legacyConverter_stopOnError">Stop on error</localize></strong>
+                            </label>
+                            <p class="text-muted">
+                                <localize key="legacyConverter_stopOnErrorDescription">
+                                    When enabled, the conversion will stop immediately if any item fails.
+                                    When disabled, failed items will be logged and the conversion continues.
+                                </localize>
+                            </p>
+                        </div>
+
+                        <div class="lfc-setting">
+                            <label>
+                                <input type="checkbox" ng-model="vm.settings.runTestFirst">
+                                <strong><localize key="legacyConverter_runTestFirst">Run test first</localize></strong>
+                            </label>
+                            <p class="text-muted">
+                                <localize key="legacyConverter_runTestFirstDescription">
+                                    Runs a test conversion first without saving any changes. If the test succeeds,
+                                    the actual conversion runs automatically. This takes longer but helps catch
+                                    errors before modifying your data.
+                                </localize>
+                            </p>
+                        </div>
+
+                        <div class="lfc-setting">
+                            <label>
+                                <input type="checkbox" ng-model="vm.settings.isTestRun">
+                                <strong><localize key="legacyConverter_testRunOnly">Test run only (dry run)</localize></strong>
+                            </label>
+                            <p class="text-muted">
+                                <localize key="legacyConverter_testRunOnlyDescription">
+                                    Only run a test conversion without saving any changes. Use this to preview
+                                    what would happen before committing to the actual conversion.
+                                </localize>
+                            </p>
+                        </div>
+                    </umb-box-content>
+                </umb-box>
+
+                <!-- Summary -->
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_summary"></umb-box-header>
+                    <umb-box-content>
+                        <p>
+                            <strong><localize key="legacyConverter_converter">Converter</localize>:</strong>
+                            {{model.converter.name}}
+                        </p>
+                        <p>
+                            <strong><localize key="legacyConverter_selectedDocTypes">Selected document types</localize>:</strong>
+                            {{vm.getSelectedCount()}}
+                        </p>
+                        <p ng-if="vm.settings.isTestRun">
+                            <uui-tag color="warning" look="secondary">
+                                <localize key="legacyConverter_testRunOnly">Test run only</localize>
+                            </uui-tag>
+                        </p>
+                    </umb-box-content>
+                </umb-box>
+            </div>
+        </umb-editor-container>
+
+        <umb-editor-footer>
+            <umb-editor-footer-content-right>
+                <umb-button ng-if="vm.currentStep > 0"
+                            type="button"
+                            button-style="info"
+                            label-key="general_previous"
+                            action="vm.prevStep()">
+                </umb-button>
+                <umb-button ng-if="vm.currentStep < vm.steps.length - 1"
+                            type="button"
+                            button-style="success"
+                            label-key="general_next"
+                            action="vm.nextStep()"
+                            disabled="vm.currentStep === 1 && vm.getSelectedCount() === 0">
+                </umb-button>
+                <umb-button ng-if="vm.currentStep === vm.steps.length - 1"
+                            type="button"
+                            button-style="success"
+                            label-key="legacyConverter_queueConversion"
+                            action="vm.queueConversion()"
+                            state="vm.submitting ? 'busy' : 'init'">
+                </umb-button>
+            </umb-editor-footer-content-right>
+        </umb-editor-footer>
+    </umb-editor-view>
+</div>

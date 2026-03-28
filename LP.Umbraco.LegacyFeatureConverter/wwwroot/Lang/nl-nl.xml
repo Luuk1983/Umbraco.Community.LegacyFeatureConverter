@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<language alias="nl" intName="Dutch" localName="Nederlands" lcid="" culture="nl-NL">
+  <creator>
+    <name>LP.Umbraco.LegacyFeatureConverter</name>
+    <link>https://github.com/LuukPeters/UmbracoLegacyFeatureConverter</link>
+  </creator>
+  <area alias="treeHeaders">
+    <key alias="legacyConvertersGroup">Verouderde converters</key>
+  </area>
+  <area alias="legacyConverter">
+    <key alias="treeTitle">Property editors</key>
+    <key alias="availableConverters">Beschikbare converters</key>
+    <key alias="noConvertersFound">Geen converters gevonden.</key>
+    <key alias="conversionQueue">Conversiewachtrij</key>
+    <key alias="conversionHistory">Conversiegeschiedenis</key>
+    <key alias="noHistoryFound">Er zijn nog geen conversies uitgevoerd.</key>
+    <key alias="converter">Converter</key>
+    <key alias="status">Status</key>
+    <key alias="queuedAt">In wachtrij op</key>
+    <key alias="startedAt">Gestart</key>
+    <key alias="completedAt">Voltooid</key>
+    <key alias="results">Resultaten</key>
+    <key alias="testRun">Testrun</key>
+    <key alias="documentTypes">documenttypen</key>
+    <key alias="dataTypes">Datatypen</key>
+    <key alias="contentNodes">Contentpagina's</key>
+    <key alias="properties">eigenschappen</key>
+    <key alias="welcomeTitle">Welkom</key>
+    <key alias="welcomeDescription">Deze wizard helpt u bij het converteren van verouderde property editors naar hun moderne equivalent.</key>
+    <key alias="welcomeAffectedCount">Betrokken documenttypen:</key>
+    <key alias="selectDocumentTypes">Selecteer documenttypen</key>
+    <key alias="selectDocTypesDescription">Selecteer de documenttypen die u wilt converteren. Niet-geselecteerde typen worden overgeslagen.</key>
+    <key alias="selectAll">Alles selecteren</key>
+    <key alias="selectedDocTypes">Geselecteerde documenttypen</key>
+    <key alias="noDocumentTypesFound">Er zijn geen documenttypen met overeenkomende eigenschappen gevonden.</key>
+    <key alias="conversionSettings">Conversie-instellingen</key>
+    <key alias="stopOnError">Stoppen bij fout</key>
+    <key alias="stopOnErrorDescription">Indien ingeschakeld stopt de conversie direct bij een fout. Indien uitgeschakeld worden fouten gelogd en gaat de conversie door.</key>
+    <key alias="runTestFirst">Eerst testen</key>
+    <key alias="runTestFirstDescription">Voert eerst een testconversie uit zonder wijzigingen op te slaan. Als de test slaagt, wordt de daadwerkelijke conversie automatisch gestart. Dit duurt langer maar helpt fouten te ontdekken voordat uw data wordt gewijzigd.</key>
+    <key alias="testRunOnly">Alleen testrun (dry run)</key>
+    <key alias="testRunOnlyDescription">Voer alleen een testconversie uit zonder wijzigingen op te slaan. Gebruik dit om een voorbeeld te zien van wat er zou gebeuren voordat u de daadwerkelijke conversie start.</key>
+    <key alias="summary">Samenvatting</key>
+    <key alias="queueConversion">Conversie in wachtrij plaatsen</key>
+    <key alias="logEntries">Logregels</key>
+    <key alias="noLogEntries">Geen logregels gevonden.</key>
+    <key alias="level">Niveau</key>
+    <key alias="timestamp">Tijd</key>
+    <key alias="itemType">Type</key>
+    <key alias="message">Bericht</key>
+    <key alias="backToOverview">Terug naar overzicht</key>
+    <key alias="conversionNotFound">Conversie niet gevonden.</key>
+  </area>
+</language>
