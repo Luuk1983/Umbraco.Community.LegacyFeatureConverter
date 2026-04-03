@@ -40,6 +40,8 @@
     <key alias="runTestFirstDescription">Runs a test conversion first without saving any changes. If the test succeeds, the actual conversion runs automatically. This takes longer but helps catch errors before modifying your data.</key>
     <key alias="testRunOnly">Test run only (dry run)</key>
     <key alias="testRunOnlyDescription">Only run a test conversion without saving any changes. Use this to preview what would happen before committing to the actual conversion.</key>
+    <key alias="publishAfterConversion">Publish after conversion</key>
+    <key alias="publishAfterConversionDescription">When enabled, converted content nodes will be saved and published. When disabled (default), content is saved as a draft and must be published manually.</key>
     <key alias="summary">Summary</key>
     <key alias="queueConversion">Queue conversion</key>
     <key alias="logEntries">Log entries</key>

@@ -77,47 +77,42 @@
                             <localize key="legacyConverter_noLogEntries">No log entries found.</localize>
                         </umb-empty-state>
 
-                        <div class="umb-table" ng-if="vm.logs.length > 0">
-                            <div class="umb-table-head">
-                                <div class="umb-table-row">
-                                    <div class="umb-table-cell" style="width: 100px;">
-                                        <localize key="legacyConverter_level">Level</localize>
-                                    </div>
-                                    <div class="umb-table-cell" style="width: 140px;">
-                                        <localize key="legacyConverter_timestamp">Time</localize>
-                                    </div>
-                                    <div class="umb-table-cell" style="width: 120px;">
-                                        <localize key="legacyConverter_itemType">Type</localize>
-                                    </div>
-                                    <div class="umb-table-cell umb-table__name">
-                                        <localize key="legacyConverter_message">Message</localize>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="umb-table-body">
-                                <div class="umb-table-row"
-                                     ng-repeat="log in vm.logs"
-                                     ng-class="{'lfc-log--error': log.level === 'Error', 'lfc-log--warning': log.level === 'Warning'}">
-                                    <div class="umb-table-cell" style="width: 100px;">
-                                        <uui-tag ng-class="vm.getLogLevelClass(log.level)" look="secondary">
-                                            {{log.level}}
-                                        </uui-tag>
-                                    </div>
-                                    <div class="umb-table-cell" style="width: 140px;">
-                                        {{log.timestamp | date:'HH:mm:ss'}}
-                                    </div>
-                                    <div class="umb-table-cell" style="width: 120px;">
-                                        {{log.itemType}}
-                                    </div>
-                                    <div class="umb-table-cell umb-table__name">
-                                        {{log.message}}
-                                        <small ng-if="log.itemName" class="db text-muted">
-                                            {{log.itemName}}
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <uui-table ng-if="vm.logs.length > 0">
+                            <uui-table-head>
+                                <uui-table-head-cell style="width: 100px;">
+                                    <localize key="legacyConverter_level">Level</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell style="width: 140px;">
+                                    <localize key="legacyConverter_timestamp">Time</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell style="width: 120px;">
+                                    <localize key="legacyConverter_itemType">Type</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_message">Message</localize>
+                                </uui-table-head-cell>
+                            </uui-table-head>
+                            <uui-table-row ng-repeat="log in vm.logs"
+                                           ng-class="{'lfc-log--error': log.level === 'Error', 'lfc-log--warning': log.level === 'Warning'}">
+                                <uui-table-cell style="width: 100px;">
+                                    <uui-tag ng-class="vm.getLogLevelClass(log.level)" look="secondary">
+                                        {{log.level}}
+                                    </uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell style="width: 140px;">
+                                    {{log.timestamp | date:'HH:mm:ss'}}
+                                </uui-table-cell>
+                                <uui-table-cell style="width: 120px;">
+                                    {{log.itemType}}
+                                </uui-table-cell>
+                                <uui-table-cell>
+                                    {{log.message}}
+                                    <small ng-if="log.itemName" class="db text-muted">
+                                        {{log.itemName}}
+                                    </small>
+                                </uui-table-cell>
+                            </uui-table-row>
+                        </uui-table>
                     </umb-box-content>
                 </umb-box>
             </div>

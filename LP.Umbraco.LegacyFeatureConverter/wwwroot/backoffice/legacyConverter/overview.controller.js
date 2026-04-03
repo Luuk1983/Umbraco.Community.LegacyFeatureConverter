@@ -19,10 +19,12 @@
 
         // State
         vm.loading = true;
-        vm.headerDescription = '';
         vm.converters = [];
         vm.queue = [];
         vm.history = { items: [], pageNumber: 1, pageSize: 10, totalPages: 0, totalItems: 0 };
+
+        // Internal tracking for auto-refresh
+        var _queueHadActiveItems = false;
 
         // Methods
         vm.startWizard = startWizard;
@@ -72,6 +74,13 @@
             $http.get(apiBase + '/GetQueueStatus')
                 .then(function (response) {
                     vm.queue = response.data;
+
+                    // Auto-refresh history when all active conversions have completed
+                    var hasActiveItems = vm.queue.length > 0;
+                    if (_queueHadActiveItems && !hasActiveItems) {
+                        loadHistory(1);
+                    }
+                    _queueHadActiveItems = hasActiveItems;
                 })
                 .catch(function () {
                     // Silent fail for background polling

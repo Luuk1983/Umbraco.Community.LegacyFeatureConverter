@@ -159,6 +159,31 @@ public class LegacyConverterApiControllerTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [TestMethod]
+    public async Task QueueConversion_WithPublishAfterConversion_MapsOptionCorrectly()
+    {
+        var queueItemId = Guid.NewGuid();
+        var converterMock = new Mock<IPropertyConverter>();
+        _converterServiceMock.Setup(s => s.GetConverterByName("NC to BL"))
+            .Returns(converterMock.Object);
+        _queueServiceMock.Setup(s => s.EnqueueAsync(
+                It.IsAny<ConversionOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(queueItemId);
+
+        var request = new ConversionRequestDto
+        {
+            ConverterType = "NC to BL",
+            PublishAfterConversion = true
+        };
+
+        var result = await _controller.QueueConversion(request);
+
+        Assert.IsInstanceOfType<OkObjectResult>(result);
+        _queueServiceMock.Verify(s => s.EnqueueAsync(
+            It.Is<ConversionOptions>(o => o.PublishAfterConversion == true),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ===== GetQueueStatus =====
 
     [TestMethod]
@@ -170,6 +195,36 @@ public class LegacyConverterApiControllerTests
         var result = await _controller.GetQueueStatus();
 
         Assert.IsInstanceOfType<JsonResult>(result);
+    }
+
+    [TestMethod]
+    public async Task GetQueueStatus_OnlyReturnsActiveItems()
+    {
+        // Arrange: queue has items in every status — only Queued and Running are active
+        var items = new List<QueueItem>
+        {
+            new() { Id = Guid.NewGuid(), Status = ConversionStatus.Queued },
+            new() { Id = Guid.NewGuid(), Status = ConversionStatus.Running },
+            new() { Id = Guid.NewGuid(), Status = ConversionStatus.Completed },
+            new() { Id = Guid.NewGuid(), Status = ConversionStatus.CompletedWithErrors },
+            new() { Id = Guid.NewGuid(), Status = ConversionStatus.Failed },
+            new() { Id = Guid.NewGuid(), Status = ConversionStatus.Cancelled },
+        };
+
+        _queueServiceMock.Setup(s => s.GetQueueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(items);
+
+        // Act
+        var result = await _controller.GetQueueStatus();
+
+        // Assert: result contains only the 2 active items
+        var jsonResult = result as JsonResult;
+        Assert.IsNotNull(jsonResult);
+        var returnedItems = jsonResult.Value as IEnumerable<QueueItem>;
+        Assert.IsNotNull(returnedItems);
+        var list = returnedItems.ToList();
+        Assert.AreEqual(2, list.Count);
+        Assert.IsTrue(list.All(i => i.Status == ConversionStatus.Queued || i.Status == ConversionStatus.Running));
     }
 
     // ===== CancelConversion =====

@@ -21,7 +21,7 @@ namespace LP.Umbraco.LegacyFeatureConverter.Backoffice;
     Constants.Applications.Settings,
     "legacyConverter",
     SortOrder = 20,
-    TreeTitle = "legacyConverter_treeTitle",
+    TreeTitle = "legacyConverter/treeTitle",
     TreeGroup = "legacyConvertersGroup")]
 public class LegacyConverterTreeController : TreeController
 {

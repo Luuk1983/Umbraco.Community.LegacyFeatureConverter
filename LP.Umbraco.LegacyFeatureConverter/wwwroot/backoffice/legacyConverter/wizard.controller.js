@@ -26,7 +26,8 @@
         vm.settings = {
             stopOnError: false,
             runTestFirst: true,
-            isTestRun: false
+            isTestRun: false,
+            publishAfterConversion: false
         };
 
         // Methods
@@ -94,7 +95,8 @@
                 selectedDocumentTypeKeys: selectedKeys.length > 0 ? selectedKeys : null,
                 isTestRun: vm.settings.isTestRun,
                 stopOnError: vm.settings.stopOnError,
-                runTestFirst: vm.settings.runTestFirst
+                runTestFirst: vm.settings.runTestFirst,
+                publishAfterConversion: vm.settings.isTestRun ? false : vm.settings.publishAfterConversion
             };
 
             $http.post(apiBase + '/QueueConversion', request)

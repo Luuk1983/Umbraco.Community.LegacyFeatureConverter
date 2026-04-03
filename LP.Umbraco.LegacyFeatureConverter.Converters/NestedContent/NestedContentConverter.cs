@@ -106,8 +106,8 @@ public class NestedContentConverter : BasePropertyConverter
             {
                 ValidationLimit = new NumberRange
                 {
-                    Max = ncConfig.MaxItems,
-                    Min = ncConfig.MinItems
+                    Max = ncConfig.MaxItems == 0 ? null : ncConfig?.MaxItems,
+                    Min = ncConfig?.MinItems
                 },
             },
         };
@@ -116,7 +116,7 @@ public class NestedContentConverter : BasePropertyConverter
         var blocks = new List<BlockConfiguration>();
 
         // Map each nested content type to a block configuration
-        if (ncConfig.ContentTypes != null)
+        if (ncConfig?.ContentTypes != null)
         {
             foreach (var ncContentType in ncConfig.ContentTypes)
             {
@@ -160,7 +160,10 @@ public class NestedContentConverter : BasePropertyConverter
     /// <returns>The Block List JSON string, or null if conversion fails.</returns>
     protected override Task<object?> ConvertPropertyValueAsync(object sourceValue, IProperty property)
     {
-        var valueString = sourceValue?.ToString();
+        if (sourceValue is null)
+            return Task.FromResult<object?>(null);
+
+        var valueString = sourceValue.ToString();
         if (string.IsNullOrEmpty(valueString))
         {
             _logger.LogDebug("Property value is empty for {PropertyAlias}", property.Alias);

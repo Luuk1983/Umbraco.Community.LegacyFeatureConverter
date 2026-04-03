@@ -36,6 +36,14 @@ public class ConversionOptions
     public bool RunTestFirst { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether converted content should also be published.
+    /// When false (default), content is saved as a draft only.
+    /// When true, content is saved and published after conversion.
+    /// Has no effect when <see cref="IsTestRun"/> is true.
+    /// </summary>
+    public bool PublishAfterConversion { get; set; }
+
+    /// <summary>
     /// Gets or sets the key of the Umbraco backoffice user performing the conversion.
     /// </summary>
     public Guid PerformingUserKey { get; set; }

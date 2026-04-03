@@ -4,6 +4,7 @@ using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Models.ContentEditing;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Infrastructure.Scoping;
 
@@ -54,6 +55,19 @@ internal class TestableConverter : BasePropertyConverter
             return ConvertPropertyValueHandler(sourceValue, property);
 
         return Task.FromResult<object?>(null);
+    }
+
+    /// <summary>
+    /// Exposes the protected ConvertContentForDocTypeAsync for testing.
+    /// </summary>
+    public Task TestConvertContentForDocTypeAsync(
+        ConversionResult result,
+        IContentType docType,
+        HashSet<string> aliasesToConvert,
+        ConversionOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        return ConvertContentForDocTypeAsync(result, docType, aliasesToConvert, options, null, cancellationToken);
     }
 }
 
@@ -260,5 +274,439 @@ public class BasePropertyConverterTests
         var count = await converter.GetAffectedDocumentTypesCountAsync();
 
         Assert.AreEqual(0, count);
+    }
+
+    // ===== Culture-variant content handling tests =====
+
+    /// <summary>
+    /// Creates a mock IProperty for an invariant property (no culture variation).
+    /// </summary>
+    private static Mock<IProperty> CreateInvariantPropertyMock(string alias, object? value, object? convertedValue)
+    {
+        var propertyTypeMock = new Mock<IPropertyType>();
+        propertyTypeMock.Setup(pt => pt.Alias).Returns(alias);
+        propertyTypeMock.Setup(pt => pt.Variations).Returns(ContentVariation.Nothing);
+
+        var propertyMock = new Mock<IProperty>();
+        propertyMock.Setup(p => p.Alias).Returns(alias);
+        propertyMock.Setup(p => p.PropertyType).Returns(propertyTypeMock.Object);
+        propertyMock.Setup(p => p.GetValue(null, null)).Returns(value);
+
+        return propertyMock;
+    }
+
+    /// <summary>
+    /// Creates a mock IProperty for a culture-variant property with the given cultures and values.
+    /// </summary>
+    private static Mock<IProperty> CreateCultureVariantPropertyMock(
+        string alias,
+        IReadOnlyDictionary<string, object?> cultureValues)
+    {
+        var propertyTypeMock = new Mock<IPropertyType>();
+        propertyTypeMock.Setup(pt => pt.Alias).Returns(alias);
+        propertyTypeMock.Setup(pt => pt.Variations).Returns(ContentVariation.Culture);
+
+        var propertyValueMocks = cultureValues.Keys.Select(culture =>
+        {
+            var pv = new Mock<IPropertyValue>();
+            pv.Setup(v => v.Culture).Returns(culture);
+            return pv.Object;
+        }).ToList();
+
+        var propertyMock = new Mock<IProperty>();
+        propertyMock.Setup(p => p.Alias).Returns(alias);
+        propertyMock.Setup(p => p.PropertyType).Returns(propertyTypeMock.Object);
+        propertyMock.Setup(p => p.Values).Returns(propertyValueMocks);
+        foreach (var (culture, value) in cultureValues)
+        {
+            propertyMock.Setup(p => p.GetValue(culture, null)).Returns(value);
+        }
+
+        return propertyMock;
+    }
+
+    /// <summary>
+    /// Creates a minimal mock IContent node with the given properties.
+    /// </summary>
+    private static Mock<IContent> CreateContentMock(int id, params IProperty[] properties)
+    {
+        var propertiesMock = new Mock<IPropertyCollection>();
+        var propertyList = properties.ToList();
+        propertiesMock.As<IEnumerable<IProperty>>()
+            .Setup(x => x.GetEnumerator())
+            .Returns(() => propertyList.GetEnumerator());
+
+        var contentMock = new Mock<IContent>();
+        contentMock.Setup(c => c.Id).Returns(id);
+        contentMock.Setup(c => c.Key).Returns(Guid.NewGuid());
+        contentMock.Setup(c => c.Name).Returns($"Content {id}");
+        contentMock.Setup(c => c.Properties).Returns(propertiesMock.Object);
+
+        return contentMock;
+    }
+
+    /// <summary>
+    /// Creates a minimal mock IContentType with the given source properties.
+    /// </summary>
+    private Mock<IContentType> CreateDocTypeMock(int id, params Mock<IProperty>[] properties)
+    {
+        var propertyTypes = properties.Select(p =>
+        {
+            var ptMock = new Mock<IPropertyType>();
+            ptMock.Setup(pt => pt.Alias).Returns(p.Object.Alias);
+            ptMock.Setup(pt => pt.PropertyEditorAlias).Returns("Umbraco.TestEditor");
+            ptMock.Setup(pt => pt.DataTypeId).Returns(99);
+            return ptMock.Object;
+        }).ToList();
+
+        var docTypeMock = new Mock<IContentType>();
+        docTypeMock.Setup(dt => dt.Id).Returns(id);
+        docTypeMock.Setup(dt => dt.Key).Returns(Guid.NewGuid());
+        docTypeMock.Setup(dt => dt.Name).Returns($"DocType {id}");
+        docTypeMock.Setup(dt => dt.Alias).Returns($"docType{id}");
+        docTypeMock.Setup(dt => dt.PropertyTypes).Returns(propertyTypes);
+        docTypeMock.Setup(dt => dt.CompositionPropertyTypes).Returns(Enumerable.Empty<IPropertyType>());
+        docTypeMock.Setup(dt => dt.ContentTypeComposition).Returns(Enumerable.Empty<IContentTypeComposition>());
+
+        return docTypeMock;
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_InvariantProperty_CallsGetValueWithoutCulture()
+    {
+        // Arrange: single invariant property with a value
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var propertyMock = CreateInvariantPropertyMock("myProp", "original", "converted:original");
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: invariant GetValue called, converted value set without culture
+        propertyMock.Verify(p => p.GetValue(null, null), Times.Once);
+        propertyMock.Verify(p => p.SetValue("converted:original", null, null), Times.Once);
+        // Verify that no culture-specific SetValue was called
+        propertyMock.Verify(p => p.SetValue(It.IsAny<object?>(), It.Is<string?>(c => c != null), It.IsAny<string?>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_CultureVariantProperty_ConvertsAllCultures()
+    {
+        // Arrange: property with values in two cultures
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var cultureValues = new Dictionary<string, object?>
+        {
+            { "en-us", "english-value" },
+            { "nl", "dutch-value" }
+        };
+        var propertyMock = CreateCultureVariantPropertyMock("myProp", cultureValues);
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: both cultures converted
+        propertyMock.Verify(p => p.SetValue("converted:english-value", "en-us", null), Times.Once);
+        propertyMock.Verify(p => p.SetValue("converted:dutch-value", "nl", null), Times.Once);
+        // Invariant value must NOT be touched
+        propertyMock.Verify(p => p.SetValue(It.IsAny<object?>(), (string?)null, It.IsAny<string?>()), Times.Never);
+        // The content node was counted as successful
+        Assert.AreEqual(1, result.ContentNodes.Count);
+        Assert.IsTrue(result.ContentNodes[0].Success);
+        Assert.AreEqual(2, result.ContentNodes[0].PropertiesConverted);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_CultureVariantProperty_NullCultureValue_SkipsThatCulture()
+    {
+        // Arrange: English has a value, Dutch returns null (no content in that culture)
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var cultureValues = new Dictionary<string, object?>
+        {
+            { "en-us", "english-value" },
+            { "nl", null }   // null → should be skipped
+        };
+        var propertyMock = CreateCultureVariantPropertyMock("myProp", cultureValues);
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: only English was converted; Dutch was skipped
+        propertyMock.Verify(p => p.SetValue("converted:english-value", "en-us", null), Times.Once);
+        propertyMock.Verify(p => p.SetValue(It.IsAny<object?>(), "nl", null), Times.Never);
+        Assert.AreEqual(1, result.ContentNodes[0].PropertiesConverted);
+    }
+
+    // ===== PublishAfterConversion option tests =====
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_WhenNotTestRun_AndPublishFalse_CallsSave()
+    {
+        // Arrange
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var propertyMock = CreateInvariantPropertyMock("myProp", "original", "converted:original");
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = false, PublishAfterConversion = false };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: Save called, NOT SaveAndPublish
+        _contentServiceMock.Verify(s => s.Save(contentMock.Object, It.IsAny<int?>(), It.IsAny<ContentScheduleCollection?>()), Times.Once);
+        _contentServiceMock.Verify(s => s.SaveAndPublish(contentMock.Object, It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_WhenNotTestRun_AndPublishTrue_CallsSaveAndPublish()
+    {
+        // Arrange
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var propertyMock = CreateInvariantPropertyMock("myProp", "original", "converted:original");
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = false, PublishAfterConversion = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: SaveAndPublish called, NOT Save
+        _contentServiceMock.Verify(s => s.SaveAndPublish(contentMock.Object, It.IsAny<string>(), It.IsAny<int>()), Times.Once);
+        _contentServiceMock.Verify(s => s.Save(contentMock.Object, It.IsAny<int?>(), It.IsAny<ContentScheduleCollection?>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_WhenTestRun_NeitherSaveNorPublishCalled()
+    {
+        // Arrange
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var propertyMock = CreateInvariantPropertyMock("myProp", "original", "converted:original");
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        // Test run with publish option set to true — publish must still not happen
+        var options = new ConversionOptions { IsTestRun = true, PublishAfterConversion = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: neither Save nor SaveAndPublish called during test run
+        _contentServiceMock.Verify(s => s.Save(It.IsAny<IContent>(), It.IsAny<int?>(), It.IsAny<ContentScheduleCollection?>()), Times.Never);
+        _contentServiceMock.Verify(s => s.SaveAndPublish(It.IsAny<IContent>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_WhenNotModified_NeitherSaveNorPublishCalled()
+    {
+        // Arrange: converter returns null (no conversion needed)
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) => Task.FromResult<object?>(null);
+
+        var propertyMock = CreateInvariantPropertyMock("myProp", "already-converted", null);
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = false, PublishAfterConversion = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: content skipped, not saved
+        _contentServiceMock.Verify(s => s.Save(It.IsAny<IContent>(), It.IsAny<int?>(), It.IsAny<ContentScheduleCollection?>()), Times.Never);
+        _contentServiceMock.Verify(s => s.SaveAndPublish(It.IsAny<IContent>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never);
+        Assert.IsTrue(result.ContentNodes[0].Skipped);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_CultureVariantProperty_AlreadyConverted_SkipsCulture()
+    {
+        // Arrange: converter returns null for Dutch (already in target format)
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+        {
+            if (value.ToString() == "already-block-list-nl") return Task.FromResult<object?>(null);
+            return Task.FromResult<object?>("converted:" + value);
+        };
+
+        var cultureValues = new Dictionary<string, object?>
+        {
+            { "en-us", "english-old" },
+            { "nl", "already-block-list-nl" }
+        };
+        var propertyMock = CreateCultureVariantPropertyMock("myProp", cultureValues);
+        var contentMock = CreateContentMock(100, propertyMock.Object);
+        var docTypeMock = CreateDocTypeMock(1, propertyMock);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "myProp" };
+        var options = new ConversionOptions { IsTestRun = true };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: English set, Dutch skipped
+        propertyMock.Verify(p => p.SetValue("converted:english-old", "en-us", null), Times.Once);
+        propertyMock.Verify(p => p.SetValue(It.IsAny<object?>(), "nl", null), Times.Never);
+        Assert.AreEqual(1, result.ContentNodes[0].PropertiesConverted);
+    }
+
+    // ===== Logging verbosity tests =====
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_WithMultiplePropertiesConverted_LogsOncePerContentNode()
+    {
+        // Arrange: two properties on the same content node, both converted.
+        // After the change, only ONE LogEntryAsync call with itemType "Content" should be made
+        // (one per content node, not one per property).
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) =>
+            Task.FromResult<object?>("converted:" + value);
+
+        var prop1 = CreateInvariantPropertyMock("prop1", "value1", "converted:value1");
+        var prop2 = CreateInvariantPropertyMock("prop2", "value2", "converted:value2");
+        var contentMock = CreateContentMock(100, prop1.Object, prop2.Object);
+        var docTypeMock = CreateDocTypeMock(1, prop1, prop2);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "prop1", "prop2" };
+        var options = new ConversionOptions { IsTestRun = false };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: exactly ONE Info-level "Content" log entry, despite 2 properties being converted
+        _historyServiceMock.Verify(
+            x => x.LogEntryAsync(
+                result.ConversionId, LogLevel.Information, "Content",
+                It.IsAny<string>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        Assert.AreEqual(2, result.ContentNodes[0].PropertiesConverted);
+    }
+
+    [TestMethod]
+    public async Task ConvertContentForDocType_WhenContentSkipped_NoContentLogEntry()
+    {
+        // Arrange: converter returns null for all properties — content is not modified.
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (value, prop) => Task.FromResult<object?>(null);
+
+        var prop1 = CreateInvariantPropertyMock("prop1", "already-converted", null);
+        var contentMock = CreateContentMock(100, prop1.Object);
+        var docTypeMock = CreateDocTypeMock(1, prop1);
+
+        long totalRecords = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out totalRecords, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var aliases = new HashSet<string> { "prop1" };
+        var options = new ConversionOptions { IsTestRun = false };
+
+        // Act
+        await converter.TestConvertContentForDocTypeAsync(result, docTypeMock.Object, aliases, options);
+
+        // Assert: no Info-level "Content" log entry for skipped content
+        _historyServiceMock.Verify(
+            x => x.LogEntryAsync(
+                result.ConversionId, LogLevel.Information, "Content",
+                It.IsAny<string>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        Assert.IsTrue(result.ContentNodes[0].Skipped);
     }
 }

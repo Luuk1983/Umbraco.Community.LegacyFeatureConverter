@@ -4,12 +4,12 @@
     angular.module('umbraco')
         .controller('legacyConverter.details.controller', LegacyConverterDetailsController);
 
-    LegacyConverterDetailsController.$inject = ['$scope', '$http', '$routeParams', '$location', 'notificationsService'];
+    LegacyConverterDetailsController.$inject = ['$scope', '$http', '$routeParams', '$location', '$window', 'notificationsService'];
 
     /**
      * Details controller showing a single conversion's summary and log entries.
      */
-    function LegacyConverterDetailsController($scope, $http, $routeParams, $location, notificationsService) {
+    function LegacyConverterDetailsController($scope, $http, $routeParams, $location, $window, notificationsService) {
         var vm = this;
         var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
 
@@ -57,7 +57,11 @@
         }
 
         function goBack() {
-            $location.path('/settings/legacyConverter/overview');
+            if ($window.history.length > 1) {
+                $window.history.back();
+            } else {
+                $location.path('/settings/legacyConverter/overview');
+            }
         }
 
         function getStatusClass(status) {

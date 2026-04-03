@@ -1,10 +1,10 @@
 <div ng-controller="legacyConverter.overview.controller as vm">
     <umb-editor-view>
         <umb-editor-header name="'Legacy Feature Converter'"
-                           description="vm.headerDescription"
                            name-locked="true"
                            hide-icon="true"
-                           hide-alias="true">
+                           hide-alias="true"
+                           hide-description="true">
         </umb-editor-header>
 
         <umb-editor-container>
@@ -19,21 +19,13 @@
                             <localize key="legacyConverter_noConvertersFound">No converters found.</localize>
                         </umb-empty-state>
 
-                        <div class="lfc-converter-cards" ng-if="vm.converters.length > 0">
-                            <div class="lfc-converter-card"
+                        <div class="lfc-converter-list" ng-if="vm.converters.length > 0">
+                            <div class="lfc-converter-item"
                                  ng-repeat="converter in vm.converters"
                                  ng-click="vm.startWizard(converter)">
-                                <div class="lfc-converter-card__header">
-                                    <umb-icon icon="icon-axis-rotation" class="lfc-converter-card__icon"></umb-icon>
-                                    <h4>{{converter.name}}</h4>
-                                </div>
-                                <p class="lfc-converter-card__description">{{converter.description}}</p>
-                                <div class="lfc-converter-card__footer">
-                                    <uui-tag color="default" look="secondary">
-                                        {{converter.affectedDocumentTypesCount}}
-                                        <localize key="legacyConverter_documentTypes">document types</localize>
-                                    </uui-tag>
-                                </div>
+                                <umb-icon icon="icon-axis-rotation" class="lfc-converter-item__icon"></umb-icon>
+                                <span class="lfc-converter-item__name">{{converter.name}}</span>
+                                <umb-icon icon="icon-navigation-right" class="lfc-converter-item__arrow"></umb-icon>
                             </div>
                         </div>
                     </umb-box-content>
@@ -43,47 +35,38 @@
                 <umb-box ng-if="vm.queue.length > 0">
                     <umb-box-header title-key="legacyConverter_conversionQueue"></umb-box-header>
                     <umb-box-content>
-                        <div class="umb-table">
-                            <div class="umb-table-head">
-                                <div class="umb-table-row">
-                                    <div class="umb-table-cell umb-table__name">
-                                        <localize key="legacyConverter_converter">Converter</localize>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <localize key="legacyConverter_status">Status</localize>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <localize key="legacyConverter_queuedAt">Queued at</localize>
-                                    </div>
-                                    <div class="umb-table-cell"></div>
-                                </div>
-                            </div>
-                            <div class="umb-table-body">
-                                <div class="umb-table-row" ng-repeat="item in vm.queue">
-                                    <div class="umb-table-cell umb-table__name">
-                                        {{vm.getConverterType(item)}}
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <uui-tag ng-class="vm.getStatusClass(item.status)"
-                                                 look="secondary">
-                                            {{item.status}}
-                                        </uui-tag>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        {{item.queuedAt | date:'short'}}
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <umb-button ng-if="item.status === 'Queued'"
-                                                    type="button"
-                                                    button-style="danger"
-                                                    size="xs"
-                                                    label-key="general_cancel"
-                                                    action="vm.cancelQueueItem(item.id)">
-                                        </umb-button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <uui-table>
+                            <uui-table-head>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_converter">Converter</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_status">Status</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_queuedAt">Queued at</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell></uui-table-head-cell>
+                            </uui-table-head>
+                            <uui-table-row ng-repeat="item in vm.queue">
+                                <uui-table-cell>{{vm.getConverterType(item)}}</uui-table-cell>
+                                <uui-table-cell>
+                                    <uui-tag ng-class="vm.getStatusClass(item.status)" look="secondary">
+                                        {{item.status}}
+                                    </uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell>{{item.queuedAt | date:'short'}}</uui-table-cell>
+                                <uui-table-cell>
+                                    <umb-button ng-if="item.status === 'Queued'"
+                                                type="button"
+                                                button-style="danger"
+                                                size="xs"
+                                                label-key="general_cancel"
+                                                action="vm.cancelQueueItem(item.id)">
+                                    </umb-button>
+                                </uui-table-cell>
+                            </uui-table-row>
+                        </uui-table>
                     </umb-box-content>
                 </umb-box>
 
@@ -95,49 +78,43 @@
                             <localize key="legacyConverter_noHistoryFound">No conversions have been run yet.</localize>
                         </umb-empty-state>
 
-                        <div class="umb-table" ng-if="vm.history.totalItems > 0">
-                            <div class="umb-table-head">
-                                <div class="umb-table-row">
-                                    <div class="umb-table-cell umb-table__name">
-                                        <localize key="legacyConverter_converter">Converter</localize>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <localize key="legacyConverter_status">Status</localize>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <localize key="legacyConverter_startedAt">Started</localize>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <localize key="legacyConverter_results">Results</localize>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="umb-table-body">
-                                <div class="umb-table-row -selectable"
-                                     ng-repeat="item in vm.history.items"
-                                     ng-click="vm.viewDetails(item.id)">
-                                    <div class="umb-table-cell umb-table__name">
-                                        {{item.converterType}}
-                                        <uui-tag ng-if="item.isTestRun" color="warning" look="secondary">
-                                            <localize key="legacyConverter_testRun">Test run</localize>
-                                        </uui-tag>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <uui-tag ng-class="vm.getStatusClass(item.status)" look="secondary">
-                                            {{item.status}}
-                                        </uui-tag>
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        {{item.startedAt | date:'short'}}
-                                    </div>
-                                    <div class="umb-table-cell">
-                                        <span class="text-success">{{item.successCount}}</span> /
-                                        <span class="text-danger">{{item.failureCount}}</span> /
-                                        <span class="text-muted">{{item.skippedCount}}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <uui-table ng-if="vm.history.totalItems > 0">
+                            <uui-table-head>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_converter">Converter</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_status">Status</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_startedAt">Started</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_results">Results</localize>
+                                </uui-table-head-cell>
+                            </uui-table-head>
+                            <uui-table-row selectable
+                                           ng-repeat="item in vm.history.items"
+                                           ng-click="vm.viewDetails(item.id)">
+                                <uui-table-cell>
+                                    {{item.converterType}}
+                                    <uui-tag ng-if="item.isTestRun" color="warning" look="secondary">
+                                        <localize key="legacyConverter_testRun">Test run</localize>
+                                    </uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell>
+                                    <uui-tag ng-class="vm.getStatusClass(item.status)" look="secondary">
+                                        {{item.status}}
+                                    </uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell>{{item.startedAt | date:'short'}}</uui-table-cell>
+                                <uui-table-cell>
+                                    <span class="text-success">{{item.successCount}}</span> /
+                                    <span class="text-danger">{{item.failureCount}}</span> /
+                                    <span class="text-muted">{{item.skippedCount}}</span>
+                                </uui-table-cell>
+                            </uui-table-row>
+                        </uui-table>
 
                         <umb-pagination ng-if="vm.history.totalPages > 1"
                                         page-number="vm.history.pageNumber"

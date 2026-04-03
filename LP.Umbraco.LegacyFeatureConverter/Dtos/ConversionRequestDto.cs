@@ -30,4 +30,10 @@ public class ConversionRequestDto
     /// Gets or sets a value indicating whether a test run should be executed first.
     /// </summary>
     public bool RunTestFirst { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether converted content should also be published.
+    /// When false (default), content is saved as a draft only.
+    /// </summary>
+    public bool PublishAfterConversion { get; set; }
 }

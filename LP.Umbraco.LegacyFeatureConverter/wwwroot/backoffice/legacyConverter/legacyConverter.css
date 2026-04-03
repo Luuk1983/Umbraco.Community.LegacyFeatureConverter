@@ -1,50 +1,43 @@
-/* ===== Converter Cards ===== */
-.lfc-converter-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+/* ===== Converter List ===== */
+.lfc-converter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.lfc-converter-card {
+.lfc-converter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
     border: 1px solid var(--uui-color-border, #e9e9eb);
-    border-radius: 6px;
-    padding: 20px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: background-color 0.15s, border-color 0.15s;
     background: var(--uui-color-surface, #fff);
 }
 
-.lfc-converter-card:hover {
+.lfc-converter-item:hover {
+    background: var(--uui-color-surface-alt, #f6f4f4);
     border-color: var(--uui-color-interactive, #2152a3);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.lfc-converter-card__header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.lfc-converter-card__header h4 {
-    margin: 0;
-    font-size: 16px;
-}
-
-.lfc-converter-card__icon {
-    font-size: 20px;
+.lfc-converter-item__icon {
+    font-size: 18px;
     color: var(--uui-color-interactive, #2152a3);
+    flex-shrink: 0;
 }
 
-.lfc-converter-card__description {
+.lfc-converter-item__name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.lfc-converter-item__arrow {
+    font-size: 14px;
     color: var(--uui-color-text-alt, #68676b);
-    font-size: 13px;
-    margin-bottom: 12px;
-}
-
-.lfc-converter-card__footer {
-    display: flex;
-    gap: 8px;
+    flex-shrink: 0;
 }
 
 /* ===== Wizard Steps ===== */

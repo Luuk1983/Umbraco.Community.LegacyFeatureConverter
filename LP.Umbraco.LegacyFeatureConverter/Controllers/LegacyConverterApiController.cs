@@ -132,6 +132,7 @@ public class LegacyConverterApiController : UmbracoApiController
                 IsTestRun = request.IsTestRun,
                 StopOnError = request.StopOnError,
                 RunTestFirst = request.RunTestFirst,
+                PublishAfterConversion = request.PublishAfterConversion,
                 PerformingUserKey = GetCurrentUserKey()
             };
 
@@ -151,16 +152,20 @@ public class LegacyConverterApiController : UmbracoApiController
     }
 
     /// <summary>
-    /// Gets the current state of the conversion queue.
+    /// Gets the active conversion queue — only items that are Queued or Running.
+    /// Completed, failed, and cancelled items are excluded from this view.
     /// </summary>
-    /// <returns>All queue items ordered by queued date.</returns>
+    /// <returns>Active queue items ordered by queued date.</returns>
     [HttpGet]
     public async Task<IActionResult> GetQueueStatus()
     {
         try
         {
             var queue = await _queueService.GetQueueAsync();
-            return new JsonResult(queue, JsonOptions);
+            var activeQueue = queue.Where(q =>
+                q.Status == ConversionStatus.Queued ||
+                q.Status == ConversionStatus.Running);
+            return new JsonResult(activeQueue, JsonOptions);
         }
         catch (Exception ex)
         {

@@ -428,11 +428,6 @@ public abstract class BasePropertyConverter : IPropertyConverter
                         property.DataTypeKey = targetDataType.Key;
                         wasModified = true;
                         dtInfo.PropertiesUpdated++;
-
-                        await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
-                            "Property", $"Updated property '{property.Name}' in document type '{docType.Name}'",
-                            null, property.Name, docType.Key.ToString(),
-                            cancellationToken: cancellationToken);
                     }
                 }
 
@@ -521,11 +516,6 @@ public abstract class BasePropertyConverter : IPropertyConverter
                     property.DataTypeId = targetDataType.Id;
                     property.DataTypeKey = targetDataType.Key;
                     compositionModified = true;
-
-                    await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
-                        "Property", $"Updated property '{property.Name}' in composition '{compositionType.Name}'",
-                        null, property.Name, compositionType.Key.ToString(),
-                        cancellationToken: cancellationToken);
                 }
             }
 
@@ -554,9 +544,18 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
     /// <summary>
     /// Converts content node property data from source format to target format.
-    /// Processes all content nodes using the affected document types.
-    /// Uses pre-tracked property aliases to identify which properties need conversion.
-    /// Each content save uses its own short-lived scope.
+    ///
+    /// Two scans are performed to cover both upgrade paths:
+    ///
+    /// Scan 1 — Doc types whose editor was just updated in Phase 3:
+    ///   Uses the pre-tracked property aliases (captured before Phase 3 changed the editors).
+    ///   These properties had the source editor and their values are guaranteed to be in the old format.
+    ///
+    /// Scan 2 — Doc types already using the target editor (e.g., updated earlier or via uSync):
+    ///   The doc type definition is already correct, but stored content values may still be in the
+    ///   old format. <see cref="ConvertPropertyValueAsync"/> acts as the gatekeeper: it returns
+    ///   <see langword="null"/> when a value is already in the target format, so no unnecessary
+    ///   saves are triggered.
     /// </summary>
     /// <param name="result">The conversion result to populate.</param>
     /// <param name="documentTypes">The document types whose content should be converted.</param>
@@ -572,96 +571,174 @@ public abstract class BasePropertyConverter : IPropertyConverter
         IProgress<ConversionProgress>? progress,
         CancellationToken cancellationToken)
     {
+        // === Scan 1: Doc types whose editor was just updated in Phase 3 ===
+        var processedDocTypeIds = new HashSet<int>();
+
         foreach (var docType in documentTypes)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            processedDocTypeIds.Add(docType.Id);
+
             if (!propertyAliasesToConvert.TryGetValue(docType.Id, out var aliasesToConvert))
                 continue;
 
-            var contentNodes = _contentService.GetPagedOfType(
-                docType.Id, 0, int.MaxValue, out long totalRecords, null);
+            await ConvertContentForDocTypeAsync(
+                result, docType, aliasesToConvert, options, progress, cancellationToken);
+        }
 
-            var processedCount = 0;
+        // === Scan 2: Doc types already using the target editor ===
+        // These were not found in Phase 1 (their editor was already correct), but their content
+        // values may still be in the old format. ConvertPropertyValueAsync returns null for values
+        // already in the target format, so only genuinely unconverted content is saved.
+        await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
+            "Conversion", "Phase 4b: Scanning content with target editor for unconverted values", null,
+            cancellationToken: cancellationToken);
 
-            foreach (var content in contentNodes)
+        var allDocTypes = _contentTypeService.GetAll();
+
+        foreach (var docType in allDocTypes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (processedDocTypeIds.Contains(docType.Id))
+                continue;
+
+            var targetAliases = docType.PropertyTypes
+                .Concat(docType.CompositionPropertyTypes)
+                .Where(pt => pt.PropertyEditorAlias == TargetPropertyEditorAlias)
+                .Select(pt => pt.Alias)
+                .ToHashSet();
+
+            if (targetAliases.Count == 0)
+                continue;
+
+            await ConvertContentForDocTypeAsync(
+                result, docType, targetAliases, options, progress, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Converts content property values for all content nodes of a given document type.
+    /// Only properties whose aliases are in <paramref name="aliasesToConvert"/> are processed.
+    /// A property is only saved when <see cref="ConvertPropertyValueAsync"/> returns a non-null value,
+    /// ensuring the method is safe to call on doc types that may already be partially converted.
+    /// For culture-variant properties, each culture is converted independently.
+    /// Each content save uses its own short-lived scope.
+    /// </summary>
+    /// <param name="result">The conversion result to populate.</param>
+    /// <param name="docType">The document type whose content nodes should be processed.</param>
+    /// <param name="aliasesToConvert">The property aliases to check and convert.</param>
+    /// <param name="options">The conversion options (for StopOnError and IsTestRun).</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="cancellationToken">Token to support cancellation.</param>
+    protected virtual async Task ConvertContentForDocTypeAsync(
+        ConversionResult result,
+        IContentType docType,
+        HashSet<string> aliasesToConvert,
+        ConversionOptions options,
+        IProgress<ConversionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var contentNodes = _contentService.GetPagedOfType(
+            docType.Id, 0, int.MaxValue, out long totalRecords, null!);
+
+        var processedCount = 0;
+
+        foreach (var content in contentNodes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            processedCount++;
+            ReportProgress(progress, result.ConversionId, "Converting content",
+                content.Name ?? $"Content {content.Id}", processedCount, (int)totalRecords);
+
+            var contentInfo = new ContentConversionInfo
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Id = content.Id,
+                Key = content.Key,
+                Name = content.Name ?? string.Empty
+            };
 
-                processedCount++;
-                ReportProgress(progress, result.ConversionId, "Converting content",
-                    content.Name ?? $"Content {content.Id}", processedCount, (int)totalRecords);
+            try
+            {
+                var wasModified = false;
 
-                var contentInfo = new ContentConversionInfo
+                var properties = content.Properties
+                    .Where(p => aliasesToConvert.Contains(p.Alias))
+                    .ToList();
+
+                foreach (var property in properties)
                 {
-                    Id = content.Id,
-                    Key = content.Key,
-                    Name = content.Name ?? string.Empty
-                };
+                    // For culture-variant properties, process each culture value independently.
+                    // For invariant properties, use culture = null (the single invariant value).
+                    IEnumerable<string?> cultures = property.PropertyType.Variations.HasFlag(ContentVariation.Culture)
+                        ? property.Values.Select(v => v.Culture).Where(c => c != null).Distinct()
+                        : new string?[] { null };
 
-                try
-                {
-                    var wasModified = false;
-
-                    var properties = content.Properties
-                        .Where(p => aliasesToConvert.Contains(p.Alias))
-                        .ToList();
-
-                    foreach (var property in properties)
+                    foreach (var culture in cultures)
                     {
-                        var oldValue = property.GetValue();
+                        var oldValue = property.GetValue(culture);
                         if (oldValue == null) continue;
 
                         var newValue = await ConvertPropertyValueAsync(oldValue, property);
                         if (newValue != null)
                         {
-                            property.SetValue(newValue);
+                            property.SetValue(newValue, culture);
                             wasModified = true;
                             contentInfo.PropertiesConverted++;
-
-                            await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
-                                "Content", $"Converted property '{property.Alias}' on content '{content.Name}'",
-                                null, content.Name, content.Key.ToString(),
-                                cancellationToken: cancellationToken);
                         }
                     }
+                }
 
-                    if (wasModified)
+                if (wasModified)
+                {
+                    if (!options.IsTestRun)
                     {
-                        if (!options.IsTestRun)
+                        if (options.PublishAfterConversion)
+                        {
+                            _contentService.SaveAndPublish(content);
+                        }
+                        else
                         {
                             _contentService.Save(content);
                         }
-
-                        contentInfo.Success = true;
-                        contentInfo.Message = $"{(options.IsTestRun ? "[DRY RUN] Would convert" : "Converted")} {contentInfo.PropertiesConverted} properties";
                     }
-                    else
-                    {
-                        contentInfo.Skipped = true;
-                        contentInfo.Message = "No properties to convert";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error converting content {ContentName} (ID: {ContentId})",
-                        content.Name, content.Id);
-                    contentInfo.ErrorMessage = ex.Message;
 
-                    await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Error,
-                        "Content", $"Error converting content {content.Name}: {ex.Message}",
-                        ex.StackTrace, content.Name, content.Key.ToString(),
+                    contentInfo.Success = true;
+                    contentInfo.Message = $"{(options.IsTestRun ? "[DRY RUN] Would convert" : "Converted")} {contentInfo.PropertiesConverted} properties";
+
+                    await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
+                        "Content", $"{(options.IsTestRun ? "[DRY RUN] Would convert" : "Converted")} {contentInfo.PropertiesConverted} " +
+                            $"propert{(contentInfo.PropertiesConverted == 1 ? "y" : "ies")} on content '{content.Name}'",
+                        null, content.Name, content.Key.ToString(),
                         cancellationToken: cancellationToken);
-
-                    if (options.StopOnError)
-                    {
-                        result.ContentNodes.Add(contentInfo);
-                        throw;
-                    }
                 }
-
-                result.ContentNodes.Add(contentInfo);
+                else
+                {
+                    contentInfo.Skipped = true;
+                    contentInfo.Message = "No properties to convert";
+                }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting content {ContentName} (ID: {ContentId})",
+                    content.Name, content.Id);
+                contentInfo.ErrorMessage = ex.Message;
+
+                await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Error,
+                    "Content", $"Error converting content {content.Name}: {ex.Message}",
+                    ex.StackTrace, content.Name, content.Key.ToString(),
+                    cancellationToken: cancellationToken);
+
+                if (options.StopOnError)
+                {
+                    result.ContentNodes.Add(contentInfo);
+                    throw;
+                }
+            }
+
+            result.ContentNodes.Add(contentInfo);
         }
     }
 

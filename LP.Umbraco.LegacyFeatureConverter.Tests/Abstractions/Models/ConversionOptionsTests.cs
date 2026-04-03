@@ -16,6 +16,8 @@ public class ConversionOptionsTests
         Assert.IsFalse(options.StopOnError);
         Assert.IsFalse(options.RunTestFirst);
         Assert.AreEqual(Guid.Empty, options.PerformingUserKey);
+        // PublishAfterConversion defaults to false (save-only is the safe default)
+        Assert.IsFalse(options.PublishAfterConversion);
     }
 
     [TestMethod]

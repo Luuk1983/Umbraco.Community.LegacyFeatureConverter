@@ -135,13 +135,13 @@ public class MediaPickerConverter : BasePropertyConverter
 
         try
         {
-            // Already in MediaPicker3 format (JSON array)
+            // Already in MediaPicker3 format (JSON array) — no conversion needed
             if (rawValue.TrimStart().StartsWith("["))
             {
-                _logger.LogInformation(
-                    "Property {PropertyAlias} appears to already be in MediaPicker3 format, keeping as-is",
+                _logger.LogDebug(
+                    "Property {PropertyAlias} is already in MediaPicker3 format, skipping",
                     property.Alias);
-                return Task.FromResult<object?>(rawValue);
+                return Task.FromResult<object?>(null);
             }
 
             // Parse comma-separated UDI strings

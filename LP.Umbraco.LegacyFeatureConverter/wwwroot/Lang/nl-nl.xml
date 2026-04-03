@@ -40,6 +40,8 @@
     <key alias="runTestFirstDescription">Voert eerst een testconversie uit zonder wijzigingen op te slaan. Als de test slaagt, wordt de daadwerkelijke conversie automatisch gestart. Dit duurt langer maar helpt fouten te ontdekken voordat uw data wordt gewijzigd.</key>
     <key alias="testRunOnly">Alleen testrun (dry run)</key>
     <key alias="testRunOnlyDescription">Voer alleen een testconversie uit zonder wijzigingen op te slaan. Gebruik dit om een voorbeeld te zien van wat er zou gebeuren voordat u de daadwerkelijke conversie start.</key>
+    <key alias="publishAfterConversion">Publiceren na conversie</key>
+    <key alias="publishAfterConversionDescription">Indien ingeschakeld worden omgezette content-nodes opgeslagen én gepubliceerd. Indien uitgeschakeld (standaard) wordt content als concept opgeslagen en moet handmatig worden gepubliceerd.</key>
     <key alias="summary">Samenvatting</key>
     <key alias="queueConversion">Conversie in wachtrij plaatsen</key>
     <key alias="logEntries">Logregels</key>

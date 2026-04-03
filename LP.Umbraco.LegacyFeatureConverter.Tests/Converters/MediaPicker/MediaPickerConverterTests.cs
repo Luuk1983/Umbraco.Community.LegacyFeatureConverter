@@ -102,8 +102,10 @@ public class MediaPickerConverterTests
     }
 
     [TestMethod]
-    public async Task ConvertPropertyValue_AlreadyMediaPicker3_ReturnsAsIs()
+    public async Task ConvertPropertyValue_AlreadyMediaPicker3_ReturnsNull()
     {
+        // Already in MP3 format → ConvertPropertyValueAsync returns null,
+        // which signals BasePropertyConverter to leave the value unchanged.
         var property = new Mock<IProperty>();
         property.Setup(p => p.Alias).Returns("image");
 
@@ -111,7 +113,7 @@ public class MediaPickerConverterTests
 
         var result = await _converter.TestConvertPropertyValueAsync(mp3Json, property.Object);
 
-        Assert.AreEqual(mp3Json, result);
+        Assert.IsNull(result);
     }
 
     [TestMethod]

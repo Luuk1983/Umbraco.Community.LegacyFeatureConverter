@@ -131,6 +131,19 @@
                                 </localize>
                             </p>
                         </div>
+
+                        <div class="lfc-setting" ng-if="!vm.settings.isTestRun">
+                            <label>
+                                <input type="checkbox" ng-model="vm.settings.publishAfterConversion">
+                                <strong><localize key="legacyConverter_publishAfterConversion">Publish after conversion</localize></strong>
+                            </label>
+                            <p class="text-muted">
+                                <localize key="legacyConverter_publishAfterConversionDescription">
+                                    When enabled, converted content nodes will be saved and published.
+                                    When disabled (default), content is saved as a draft and must be published manually.
+                                </localize>
+                            </p>
+                        </div>
                     </umb-box-content>
                 </umb-box>
 
