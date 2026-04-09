@@ -55,6 +55,11 @@
     <key alias="selectAll">Select all</key>
     <key alias="selectedDocTypes">Selected document types</key>
     <key alias="noDocumentTypesFound">No document types with matching properties were found.</key>
+    <key alias="runMode">Run mode</key>
+    <key alias="modeTestRun">Test run only</key>
+    <key alias="modeTestRunDescription">Runs the conversion without saving any changes. Use this to preview what would happen before committing.</key>
+    <key alias="modeConversionRun">Conversion run</key>
+    <key alias="modeConversionRunDescription">Runs the actual conversion and saves all changes. Document types, data types, and content will be updated.</key>
     <key alias="conversionSettings">Conversion settings</key>
     <key alias="stopOnError">Stop on error</key>
     <key alias="stopOnErrorDescription">When enabled, the conversion will stop immediately if any item fails. When disabled, failed items will be logged and the conversion continues.</key>

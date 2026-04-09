@@ -55,6 +55,11 @@
     <key alias="selectAll">Alles selecteren</key>
     <key alias="selectedDocTypes">Geselecteerde documenttypen</key>
     <key alias="noDocumentTypesFound">Er zijn geen documenttypen met overeenkomende eigenschappen gevonden.</key>
+    <key alias="runMode">Uitvoermodus</key>
+    <key alias="modeTestRun">Alleen testrun</key>
+    <key alias="modeTestRunDescription">Voert de conversie uit zonder wijzigingen op te slaan. Gebruik dit om een voorbeeld te zien van wat er zou gebeuren.</key>
+    <key alias="modeConversionRun">Conversie uitvoeren</key>
+    <key alias="modeConversionRunDescription">Voert de daadwerkelijke conversie uit en slaat alle wijzigingen op. Documenttypen, datatypen en content worden bijgewerkt.</key>
     <key alias="conversionSettings">Conversie-instellingen</key>
     <key alias="stopOnError">Stoppen bij fout</key>
     <key alias="stopOnErrorDescription">Indien ingeschakeld stopt de conversie direct bij een fout. Indien uitgeschakeld worden fouten gelogd en gaat de conversie door.</key>

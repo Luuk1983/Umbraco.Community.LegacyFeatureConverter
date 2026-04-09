@@ -42,7 +42,7 @@
         vm.cancel = cancel;
         vm.selectConverter = selectConverter;
         vm.selectApproach = selectApproach;
-        vm.onIsTestRunChange = onIsTestRunChange;
+        vm.setRunMode = setRunMode;
         vm.toggleSelectAll = toggleSelectAll;
         vm.getSelectedDocTypeCount = getSelectedDocTypeCount;
         vm.getSelectedContentCount = getSelectedContentCount;
@@ -63,9 +63,11 @@
             vm.approach = approach;
         }
 
-        function onIsTestRunChange() {
-            if (vm.settings.isTestRun) {
+        function setRunMode(isTestRun) {
+            vm.settings.isTestRun = isTestRun;
+            if (isTestRun) {
                 vm.settings.runTestFirst = false;
+                vm.settings.publishAfterConversion = false;
             }
         }
 

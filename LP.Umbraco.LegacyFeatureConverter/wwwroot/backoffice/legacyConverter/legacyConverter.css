@@ -330,6 +330,11 @@
     font-size: 13px;
 }
 
+.lfc-setting--disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
 /* ===== Details Grid ===== */
 .lfc-details-grid {
     display: grid;

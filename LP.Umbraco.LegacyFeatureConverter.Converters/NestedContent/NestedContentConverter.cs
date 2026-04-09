@@ -141,7 +141,8 @@ public class NestedContentConverter : BasePropertyConverter
                 blocks.Add(new BlockConfiguration
                 {
                     ContentElementTypeKey = elementType.Key,
-                    SettingsElementTypeKey = null // Nested Content doesn't have settings blocks
+                    SettingsElementTypeKey = null, // Nested Content doesn't have settings blocks
+                    Label = ncContentType.Template // Copy NC name template as Block List label
                 });
             }
         }

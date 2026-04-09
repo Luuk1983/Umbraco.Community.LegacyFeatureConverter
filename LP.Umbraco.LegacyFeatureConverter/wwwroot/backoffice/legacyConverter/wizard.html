@@ -226,25 +226,53 @@
 
             <!-- Step 4: Settings -->
             <div ng-if="vm.currentStep === 3">
+                <!-- Run mode -->
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_runMode"></umb-box-header>
+                    <umb-box-content>
+                        <div class="lfc-approach-list">
+                            <div class="lfc-approach-block"
+                                 ng-class="{'--selected': vm.settings.isTestRun}"
+                                 ng-click="vm.setRunMode(true)">
+                                <div class="lfc-approach-block__header">
+                                    <umb-icon icon="icon-lab" class="lfc-approach-block__icon"></umb-icon>
+                                    <span class="lfc-approach-block__title">
+                                        <localize key="legacyConverter_modeTestRun">Test run only</localize>
+                                    </span>
+                                </div>
+                                <p class="lfc-approach-block__description">
+                                    <localize key="legacyConverter_modeTestRunDescription">
+                                        Runs the conversion without saving any changes. Use this to preview what would happen before committing.
+                                    </localize>
+                                </p>
+                            </div>
+
+                            <div class="lfc-approach-block"
+                                 ng-class="{'--selected': !vm.settings.isTestRun}"
+                                 ng-click="vm.setRunMode(false)">
+                                <div class="lfc-approach-block__header">
+                                    <umb-icon icon="icon-redo" class="lfc-approach-block__icon"></umb-icon>
+                                    <span class="lfc-approach-block__title">
+                                        <localize key="legacyConverter_modeConversionRun">Conversion run</localize>
+                                    </span>
+                                </div>
+                                <p class="lfc-approach-block__description">
+                                    <localize key="legacyConverter_modeConversionRunDescription">
+                                        Runs the actual conversion and saves all changes. Document types, data types, and content will be updated.
+                                    </localize>
+                                </p>
+                            </div>
+                        </div>
+                    </umb-box-content>
+                </umb-box>
+
+                <!-- Settings -->
                 <umb-box>
                     <umb-box-header title-key="legacyConverter_conversionSettings"></umb-box-header>
                     <umb-box-content>
-                        <div class="lfc-setting">
+                        <div class="lfc-setting" ng-class="{'lfc-setting--disabled': vm.settings.isTestRun}">
                             <label>
-                                <input type="checkbox" ng-model="vm.settings.stopOnError">
-                                <strong><localize key="legacyConverter_stopOnError">Stop on error</localize></strong>
-                            </label>
-                            <p class="text-muted">
-                                <localize key="legacyConverter_stopOnErrorDescription">
-                                    When enabled, the conversion will stop immediately if any item fails.
-                                    When disabled, failed items will be logged and the conversion continues.
-                                </localize>
-                            </p>
-                        </div>
-
-                        <div class="lfc-setting" ng-hide="vm.settings.isTestRun">
-                            <label>
-                                <input type="checkbox" ng-model="vm.settings.runTestFirst">
+                                <input type="checkbox" ng-model="vm.settings.runTestFirst" ng-disabled="vm.settings.isTestRun">
                                 <strong><localize key="legacyConverter_runTestFirst">Run test first</localize></strong>
                             </label>
                             <p class="text-muted">
@@ -258,20 +286,20 @@
 
                         <div class="lfc-setting">
                             <label>
-                                <input type="checkbox" ng-model="vm.settings.isTestRun" ng-change="vm.onIsTestRunChange()">
-                                <strong><localize key="legacyConverter_testRunOnly">Test run only (dry run)</localize></strong>
+                                <input type="checkbox" ng-model="vm.settings.stopOnError">
+                                <strong><localize key="legacyConverter_stopOnError">Stop on error</localize></strong>
                             </label>
                             <p class="text-muted">
-                                <localize key="legacyConverter_testRunOnlyDescription">
-                                    Only run a test conversion without saving any changes. Use this to preview
-                                    what would happen before committing to the actual conversion.
+                                <localize key="legacyConverter_stopOnErrorDescription">
+                                    When enabled, the conversion will stop immediately if any item fails.
+                                    When disabled, failed items will be logged and the conversion continues.
                                 </localize>
                             </p>
                         </div>
 
-                        <div class="lfc-setting" ng-if="!vm.settings.isTestRun">
+                        <div class="lfc-setting" ng-class="{'lfc-setting--disabled': vm.settings.isTestRun}">
                             <label>
-                                <input type="checkbox" ng-model="vm.settings.publishAfterConversion">
+                                <input type="checkbox" ng-model="vm.settings.publishAfterConversion" ng-disabled="vm.settings.isTestRun">
                                 <strong><localize key="legacyConverter_publishAfterConversion">Publish after conversion</localize></strong>
                             </label>
                             <p class="text-muted">
