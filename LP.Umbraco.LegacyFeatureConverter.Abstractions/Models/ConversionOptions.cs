@@ -47,4 +47,17 @@ public class ConversionOptions
     /// Gets or sets the key of the Umbraco backoffice user performing the conversion.
     /// </summary>
     public Guid PerformingUserKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets the approach used to discover which document types and content to process.
+    /// Defaults to <see cref="ConversionApproach.DocumentType"/>.
+    /// </summary>
+    public ConversionApproach Approach { get; set; } = ConversionApproach.DocumentType;
+
+    /// <summary>
+    /// Gets or sets the pre-computed conversion plan from the wizard.
+    /// When provided, the background task uses this plan directly instead of re-scanning,
+    /// avoiding duplicate work and ensuring the migration matches the preview exactly.
+    /// </summary>
+    public ConversionPlan? Plan { get; set; }
 }

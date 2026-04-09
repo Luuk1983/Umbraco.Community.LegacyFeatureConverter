@@ -5,14 +5,14 @@
         .controller('legacyConverter.overview.controller', LegacyConverterOverviewController);
 
     LegacyConverterOverviewController.$inject = [
-        '$scope', '$http', '$location', '$interval', 'notificationsService', 'editorService'
+        '$scope', '$http', '$interval', 'notificationsService', 'editorService'
     ];
 
     /**
      * Main overview controller for the Legacy Feature Converter.
      * Shows available converters, active queue, and conversion history.
      */
-    function LegacyConverterOverviewController($scope, $http, $location, $interval, notificationsService, editorService) {
+    function LegacyConverterOverviewController($scope, $http, $interval, notificationsService, editorService) {
         var vm = this;
         var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
         var pollInterval;
@@ -27,7 +27,7 @@
         var _queueHadActiveItems = false;
 
         // Methods
-        vm.startWizard = startWizard;
+        vm.startNewConversion = startNewConversion;
         vm.viewDetails = viewDetails;
         vm.cancelQueueItem = cancelQueueItem;
         vm.getStatusClass = getStatusClass;
@@ -99,12 +99,12 @@
             });
         }
 
-        function startWizard(converter) {
+        function startNewConversion() {
             editorService.open({
-                title: converter.name,
+                title: 'Start a new conversion',
                 size: 'medium',
                 view: '/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/wizard.html',
-                converter: converter,
+                converters: vm.converters,
                 submit: function (model) {
                     editorService.close();
                     loadQueue();
@@ -117,7 +117,15 @@
         }
 
         function viewDetails(conversionId) {
-            $location.path('/settings/legacyConverter/details/' + conversionId);
+            editorService.open({
+                title: 'Conversion details',
+                size: 'large',
+                view: '/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/details.html',
+                conversionId: conversionId,
+                close: function () {
+                    editorService.close();
+                }
+            });
         }
 
         function cancelQueueItem(id) {
@@ -145,7 +153,7 @@
         function getConverterType(queueItem) {
             try {
                 var options = JSON.parse(queueItem.serializedOptions);
-                return options.converterType || 'Unknown';
+                return options.ConverterType || options.converterType || 'Unknown';
             } catch (e) {
                 return 'Unknown';
             }

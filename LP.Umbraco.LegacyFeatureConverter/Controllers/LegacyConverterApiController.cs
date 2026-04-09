@@ -133,7 +133,9 @@ public class LegacyConverterApiController : UmbracoApiController
                 StopOnError = request.StopOnError,
                 RunTestFirst = request.RunTestFirst,
                 PublishAfterConversion = request.PublishAfterConversion,
-                PerformingUserKey = GetCurrentUserKey()
+                PerformingUserKey = GetCurrentUserKey(),
+                Approach = request.Approach,
+                Plan = request.Plan
             };
 
             var queueItemId = await _queueService.EnqueueAsync(options);
@@ -148,6 +150,39 @@ public class LegacyConverterApiController : UmbracoApiController
         {
             _logger.LogError(ex, "Error queuing conversion");
             return StatusCode(500, new { error = "Failed to queue conversion", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Computes a detailed conversion plan for the given converter and approach.
+    /// Shows exactly which document types and content nodes will be affected.
+    /// The plan is returned to the wizard for display and then submitted with
+    /// QueueConversion so the background task can skip re-scanning.
+    /// </summary>
+    /// <param name="request">The converter name and approach.</param>
+    /// <returns>The computed conversion plan.</returns>
+    [HttpPost]
+    public async Task<IActionResult> ComputePlan([FromBody] ConversionPlanRequestDto? request)
+    {
+        try
+        {
+            if (request == null)
+                return BadRequest(new { error = "Request body is required" });
+
+            if (string.IsNullOrWhiteSpace(request.ConverterName))
+                return BadRequest(new { error = "Converter name is required" });
+
+            var converter = _converterService.GetConverterByName(request.ConverterName);
+            if (converter == null)
+                return NotFound(new { error = $"Converter '{request.ConverterName}' not found" });
+
+            var plan = await _converterService.ComputePlanAsync(request.ConverterName, request.Approach);
+            return new JsonResult(plan, JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error computing plan for converter {ConverterName}", request?.ConverterName);
+            return StatusCode(500, new { error = "Failed to compute plan", details = ex.Message });
         }
     }
 

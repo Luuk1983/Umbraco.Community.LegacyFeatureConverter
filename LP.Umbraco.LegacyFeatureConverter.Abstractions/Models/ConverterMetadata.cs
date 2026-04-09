@@ -16,6 +16,21 @@ public class ConverterMetadata
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets a short display name for the converter card UI.
+    /// </summary>
+    public string ShortName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Umbraco backoffice icon for this converter.
+    /// </summary>
+    public string Icon { get; set; } = "icon-axis-rotation";
+
+    /// <summary>
+    /// Gets or sets the category label (e.g., "Property editor").
+    /// </summary>
+    public string Category { get; set; } = "Property editor";
+
+    /// <summary>
     /// Gets or sets the property editor aliases this converter can convert from.
     /// </summary>
     public string[] SourceAliases { get; set; } = Array.Empty<string>();

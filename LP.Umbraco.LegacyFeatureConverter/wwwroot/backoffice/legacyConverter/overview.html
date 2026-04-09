@@ -1,41 +1,35 @@
 <div ng-controller="legacyConverter.overview.controller as vm">
     <umb-editor-view>
-        <umb-editor-header name="'Legacy Feature Converter'"
-                           name-locked="true"
-                           hide-icon="true"
-                           hide-alias="true"
-                           hide-description="true">
-        </umb-editor-header>
+        <div data-element="editor-header" class="umb-editor-header">
+            <div class="flex items-center" style="height: 100%;">
+                <div class="flex items-center" style="flex: 1;">
+                    <div class="umb-editor-header__name-and-description" style="flex: 1 1 auto;">
+                        <h1 class="umb-panel-header-name">Legacy feature converters</h1>
+                    </div>
+                </div>
+                <div style="padding-right: 20px;">
+                    <umb-button type="button"
+                                button-style="success"
+                                label-key="legacyConverter_startNewConversion"
+                                action="vm.startNewConversion()">
+                    </umb-button>
+                </div>
+            </div>
+        </div>
 
         <umb-editor-container>
             <umb-load-indicator ng-if="vm.loading"></umb-load-indicator>
 
             <div ng-if="!vm.loading">
-                <!-- Converters section -->
-                <umb-box>
-                    <umb-box-header title-key="legacyConverter_availableConverters"></umb-box-header>
-                    <umb-box-content>
-                        <umb-empty-state ng-if="vm.converters.length === 0" size="small">
-                            <localize key="legacyConverter_noConvertersFound">No converters found.</localize>
-                        </umb-empty-state>
-
-                        <div class="lfc-converter-list" ng-if="vm.converters.length > 0">
-                            <div class="lfc-converter-item"
-                                 ng-repeat="converter in vm.converters"
-                                 ng-click="vm.startWizard(converter)">
-                                <umb-icon icon="icon-axis-rotation" class="lfc-converter-item__icon"></umb-icon>
-                                <span class="lfc-converter-item__name">{{converter.name}}</span>
-                                <umb-icon icon="icon-navigation-right" class="lfc-converter-item__arrow"></umb-icon>
-                            </div>
-                        </div>
-                    </umb-box-content>
-                </umb-box>
-
                 <!-- Queue section -->
-                <umb-box ng-if="vm.queue.length > 0">
+                <umb-box>
                     <umb-box-header title-key="legacyConverter_conversionQueue"></umb-box-header>
                     <umb-box-content>
-                        <uui-table>
+                        <umb-empty-state ng-if="vm.queue.length === 0" size="small">
+                            <localize key="legacyConverter_queueEmpty">The queue is currently empty.</localize>
+                        </umb-empty-state>
+
+                        <uui-table ng-if="vm.queue.length > 0">
                             <uui-table-head>
                                 <uui-table-head-cell>
                                     <localize key="legacyConverter_converter">Converter</localize>

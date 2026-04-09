@@ -18,48 +18,157 @@
                 </div>
             </div>
 
-            <!-- Step 1: Welcome -->
+            <!-- Step 1: Converter selection -->
             <div ng-if="vm.currentStep === 0">
                 <umb-box>
-                    <umb-box-header title-key="legacyConverter_welcomeTitle"></umb-box-header>
+                    <umb-box-header title-key="legacyConverter_selectConverter"></umb-box-header>
                     <umb-box-content>
-                        <p><localize key="legacyConverter_welcomeDescription">
-                            This wizard will guide you through converting legacy property editors to their modern equivalents.
-                        </localize></p>
-                        <p><strong>{{model.converter.name}}</strong></p>
-                        <p>{{model.converter.description}}</p>
-                        <p>
-                            <localize key="legacyConverter_welcomeAffectedCount">
-                                Affected document types:
+                        <p class="mb3 text-muted">
+                            <localize key="legacyConverter_selectConverterDescription">
+                                Choose a converter to start the conversion process.
                             </localize>
-                            <uui-tag color="default" look="secondary">
-                                {{model.converter.affectedDocumentTypesCount}}
-                            </uui-tag>
                         </p>
+                        <div class="lfc-converter-cards">
+                            <div class="lfc-converter-card"
+                                 ng-repeat="converter in vm.converters"
+                                 ng-class="{'--selected': vm.selectedConverter === converter}"
+                                 ng-click="vm.selectConverter(converter)">
+                                <div class="lfc-converter-card__header">
+                                    <umb-icon icon="{{converter.icon || 'icon-axis-rotation'}}" class="lfc-converter-card__icon"></umb-icon>
+                                    <span class="lfc-converter-card__title">{{converter.shortName || converter.name}}</span>
+                                </div>
+                                <uui-tag look="secondary" class="lfc-converter-card__category">
+                                    {{converter.category || 'Property editor'}}
+                                </uui-tag>
+                                <p class="lfc-converter-card__description">{{converter.description}}</p>
+                            </div>
+                        </div>
                     </umb-box-content>
                 </umb-box>
             </div>
 
-            <!-- Step 2: Document Type Selection -->
+            <!-- Step 2: Approach selection -->
             <div ng-if="vm.currentStep === 1">
                 <umb-box>
-                    <umb-box-header title-key="legacyConverter_selectDocumentTypes"></umb-box-header>
+                    <umb-box-header title-key="legacyConverter_selectApproach"></umb-box-header>
                     <umb-box-content>
-                        <umb-load-indicator ng-if="vm.loadingDocTypes"></umb-load-indicator>
+                        <p class="mb3 text-muted">
+                            <localize key="legacyConverter_selectApproachDescription">
+                                Choose how the converter should discover which document types and content to update.
+                            </localize>
+                        </p>
 
-                        <umb-empty-state ng-if="!vm.loadingDocTypes && vm.documentTypes.length === 0" size="small">
-                            <localize key="legacyConverter_noDocumentTypesFound">
-                                No document types with matching properties were found.
+                        <div class="lfc-approach-list">
+
+                            <div class="lfc-approach-block"
+                                 ng-class="{'--selected': vm.approach === 'DocumentType'}"
+                                 ng-click="vm.selectApproach('DocumentType')">
+                                <div class="lfc-approach-block__header">
+                                    <umb-icon icon="icon-document" class="lfc-approach-block__icon"></umb-icon>
+                                    <span class="lfc-approach-block__title">
+                                        <localize key="legacyConverter_approachDocumentType">Document type</localize>
+                                    </span>
+                                    <uui-tag color="positive" look="secondary" class="lfc-approach-block__badge">
+                                        <localize key="legacyConverter_approachFastest">Fastest</localize>
+                                    </uui-tag>
+                                </div>
+                                <p class="lfc-approach-block__description">
+                                    <localize key="legacyConverter_approachDocumentTypeDescription">
+                                        Scans document types for properties using the legacy editor. Updates all matching document types, their data types, and all associated content. Document types with no content are also updated.
+                                    </localize>
+                                </p>
+                                <ul class="lfc-approach-block__traits">
+                                    <li class="lfc-approach-block__pro">
+                                        <localize key="legacyConverter_approachDocumentTypePro1">Fast — no content value scanning required.</localize>
+                                    </li>
+                                    <li class="lfc-approach-block__con">
+                                        <localize key="legacyConverter_approachDocumentTypeCon1">Does not catch document types already updated by uSync whose content was never migrated.</localize>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="lfc-approach-block"
+                                 ng-class="{'--selected': vm.approach === 'Thorough'}"
+                                 ng-click="vm.selectApproach('Thorough')">
+                                <div class="lfc-approach-block__header">
+                                    <umb-icon icon="icon-wand" class="lfc-approach-block__icon"></umb-icon>
+                                    <span class="lfc-approach-block__title">
+                                        <localize key="legacyConverter_approachThorough">Thorough</localize>
+                                    </span>
+                                    <uui-tag color="warning" look="secondary" class="lfc-approach-block__badge">
+                                        <localize key="legacyConverter_approachSlower">Slower</localize>
+                                    </uui-tag>
+                                </div>
+                                <p class="lfc-approach-block__description">
+                                    <localize key="legacyConverter_approachThoroughDescription">
+                                        Everything the Document type approach does, plus a direct scan of content values to find any unconverted data. Catches the uSync scenario and recovers from partial migration failures.
+                                    </localize>
+                                </p>
+                                <ul class="lfc-approach-block__traits">
+                                    <li class="lfc-approach-block__pro">
+                                        <localize key="legacyConverter_approachThoroughPro1">Finds unconverted content even when the document type schema was already updated.</localize>
+                                    </li>
+                                    <li class="lfc-approach-block__pro">
+                                        <localize key="legacyConverter_approachThoroughPro2">Safe to run after a partial or failed migration to ensure nothing was missed.</localize>
+                                    </li>
+                                    <li class="lfc-approach-block__con">
+                                        <localize key="legacyConverter_approachThoroughCon1">Slower: scans actual content values in addition to the schema.</localize>
+                                    </li>
+                                </ul>
+                            </div>
+
+                        </div>
+                    </umb-box-content>
+                </umb-box>
+            </div>
+
+            <!-- Step 3: Impact overview -->
+            <div ng-if="vm.currentStep === 2">
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_impactOverview"></umb-box-header>
+                    <umb-box-content>
+
+                        <!-- Loading state -->
+                        <div ng-if="vm.loadingPlan" class="lfc-plan-loading">
+                            <uui-loader></uui-loader>
+                            <p class="text-muted mt2">
+                                <localize key="legacyConverter_computingPlan">Analysing your content and document types…</localize>
+                            </p>
+                        </div>
+
+                        <!-- Empty state -->
+                        <umb-empty-state ng-if="!vm.loadingPlan && vm.plan && vm.plan.documentTypes.length === 0" size="small">
+                            <localize key="legacyConverter_noImpact">
+                                Nothing to convert was found for the selected approach.
                             </localize>
                         </umb-empty-state>
 
-                        <div ng-if="!vm.loadingDocTypes && vm.documentTypes.length > 0">
-                            <p class="mb3">
-                                <localize key="legacyConverter_selectDocTypesDescription">
-                                    Select the document types you want to convert. Unselected types will be skipped.
-                                </localize>
-                            </p>
+                        <!-- Plan results -->
+                        <div ng-if="!vm.loadingPlan && vm.plan && vm.plan.documentTypes.length > 0">
 
+                            <!-- Totals bar -->
+                            <div class="lfc-impact-totals mb3">
+                                <div class="lfc-impact-total">
+                                    <span class="lfc-impact-total__value">{{vm.getSelectedDocTypeCount()}}</span>
+                                    <span class="lfc-impact-total__label">
+                                        <localize key="legacyConverter_documentTypes">document types</localize>
+                                    </span>
+                                </div>
+                                <div class="lfc-impact-total">
+                                    <span class="lfc-impact-total__value">{{vm.getSelectedContentCount()}}</span>
+                                    <span class="lfc-impact-total__label">
+                                        <localize key="legacyConverter_contentNodes">content nodes</localize>
+                                    </span>
+                                </div>
+                                <div class="lfc-impact-total">
+                                    <span class="lfc-impact-total__value">{{vm.getSelectedPropertyCount()}}</span>
+                                    <span class="lfc-impact-total__label">
+                                        <localize key="legacyConverter_properties">properties</localize>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Select all toggle -->
                             <div class="lfc-select-all mb2">
                                 <label>
                                     <input type="checkbox"
@@ -69,26 +178,54 @@
                                 </label>
                             </div>
 
-                            <div class="lfc-doctype-list">
-                                <label class="lfc-doctype-item"
-                                       ng-repeat="docType in vm.documentTypes">
-                                    <input type="checkbox" ng-model="docType.selected">
-                                    <umb-icon icon="{{docType.icon || 'icon-document'}}" class="mr1"></umb-icon>
-                                    <span>{{docType.name}}</span>
-                                    <small class="text-muted ml1">({{docType.alias}})</small>
-                                    <uui-tag color="default" look="secondary" class="ml-auto">
-                                        {{docType.propertiesCount}}
-                                        <localize key="legacyConverter_properties">properties</localize>
-                                    </uui-tag>
-                                </label>
-                            </div>
+                            <!-- Document type list -->
+                            <uui-table>
+                                <uui-table-column style="width: 36px;"></uui-table-column>
+                                <uui-table-column></uui-table-column>
+                                <uui-table-column style="width: 120px;"></uui-table-column>
+                                <uui-table-column style="width: 90px;"></uui-table-column>
+                                <uui-table-column style="width: 110px;"></uui-table-column>
+                                <uui-table-head>
+                                    <uui-table-head-cell></uui-table-head-cell>
+                                    <uui-table-head-cell><localize key="legacyConverter_documentType">Document type</localize></uui-table-head-cell>
+                                    <uui-table-head-cell><localize key="legacyConverter_updateType">Update type</localize></uui-table-head-cell>
+                                    <uui-table-head-cell><localize key="legacyConverter_contentNodes">Content nodes</localize></uui-table-head-cell>
+                                    <uui-table-head-cell><localize key="legacyConverter_properties">Properties</localize></uui-table-head-cell>
+                                </uui-table-head>
+                                <uui-table-row ng-repeat="docType in vm.plan.documentTypes"
+                                               selectable
+                                               ng-class="{'lfc-row--deselected': !docType.selected}">
+                                    <uui-table-cell>
+                                        <input type="checkbox" ng-model="docType.selected">
+                                    </uui-table-cell>
+                                    <uui-table-cell>
+                                        <div class="lfc-impact-doctype">
+                                            <umb-icon icon="{{docType.icon || 'icon-document'}}" class="mr1"></umb-icon>
+                                            <span>{{docType.name}}</span>
+                                            <small class="text-muted ml1">({{docType.alias}})</small>
+                                        </div>
+                                    </uui-table-cell>
+                                    <uui-table-cell>
+                                        <uui-tag ng-if="docType.needsSchemaUpdate && docType.needsContentUpdate"
+                                                 color="danger" look="secondary">
+                                            <localize key="legacyConverter_updateFull">Schema + content</localize>
+                                        </uui-tag>
+                                        <uui-tag ng-if="!docType.needsSchemaUpdate && docType.needsContentUpdate"
+                                                 color="warning" look="secondary">
+                                            <localize key="legacyConverter_updateContentOnly">Content only</localize>
+                                        </uui-tag>
+                                    </uui-table-cell>
+                                    <uui-table-cell>{{docType.contentNodeCount}}</uui-table-cell>
+                                    <uui-table-cell>{{docType.propertyCount}}</uui-table-cell>
+                                </uui-table-row>
+                            </uui-table>
                         </div>
                     </umb-box-content>
                 </umb-box>
             </div>
 
-            <!-- Step 3: Settings -->
-            <div ng-if="vm.currentStep === 2">
+            <!-- Step 4: Settings -->
+            <div ng-if="vm.currentStep === 3">
                 <umb-box>
                     <umb-box-header title-key="legacyConverter_conversionSettings"></umb-box-header>
                     <umb-box-content>
@@ -105,7 +242,7 @@
                             </p>
                         </div>
 
-                        <div class="lfc-setting">
+                        <div class="lfc-setting" ng-hide="vm.settings.isTestRun">
                             <label>
                                 <input type="checkbox" ng-model="vm.settings.runTestFirst">
                                 <strong><localize key="legacyConverter_runTestFirst">Run test first</localize></strong>
@@ -121,7 +258,7 @@
 
                         <div class="lfc-setting">
                             <label>
-                                <input type="checkbox" ng-model="vm.settings.isTestRun">
+                                <input type="checkbox" ng-model="vm.settings.isTestRun" ng-change="vm.onIsTestRunChange()">
                                 <strong><localize key="legacyConverter_testRunOnly">Test run only (dry run)</localize></strong>
                             </label>
                             <p class="text-muted">
@@ -153,11 +290,19 @@
                     <umb-box-content>
                         <p>
                             <strong><localize key="legacyConverter_converter">Converter</localize>:</strong>
-                            {{model.converter.name}}
+                            {{vm.selectedConverter.name}}
+                        </p>
+                        <p>
+                            <strong><localize key="legacyConverter_approach">Approach</localize>:</strong>
+                            {{vm.approach}}
                         </p>
                         <p>
                             <strong><localize key="legacyConverter_selectedDocTypes">Selected document types</localize>:</strong>
-                            {{vm.getSelectedCount()}}
+                            {{vm.getSelectedDocTypeCount()}}
+                        </p>
+                        <p>
+                            <strong><localize key="legacyConverter_contentNodes">Content nodes</localize>:</strong>
+                            {{vm.getSelectedContentCount()}}
                         </p>
                         <p ng-if="vm.settings.isTestRun">
                             <uui-tag color="warning" look="secondary">
@@ -170,6 +315,13 @@
         </umb-editor-container>
 
         <umb-editor-footer>
+            <umb-editor-footer-content-left>
+                <umb-button type="button"
+                            button-style="link"
+                            label-key="general_cancel"
+                            action="vm.cancel()">
+                </umb-button>
+            </umb-editor-footer-content-left>
             <umb-editor-footer-content-right>
                 <umb-button ng-if="vm.currentStep > 0"
                             type="button"
@@ -182,7 +334,7 @@
                             button-style="success"
                             label-key="general_next"
                             action="vm.nextStep()"
-                            disabled="vm.currentStep === 1 && vm.getSelectedCount() === 0">
+                            disabled="vm.nextDisabled()">
                 </umb-button>
                 <umb-button ng-if="vm.currentStep === vm.steps.length - 1"
                             type="button"

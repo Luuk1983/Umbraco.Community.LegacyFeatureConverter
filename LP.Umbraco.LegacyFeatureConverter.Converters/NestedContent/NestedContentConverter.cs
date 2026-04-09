@@ -63,6 +63,9 @@ public class NestedContentConverter : BasePropertyConverter
     public override string ConverterName => "Nested Content to Block List";
 
     /// <inheritdoc />
+    public string ShortName => "Nested Content";
+
+    /// <inheritdoc />
     public override string[] SourcePropertyEditorAliases => new[]
     {
         PropertyEditors.Aliases.NestedContent
@@ -167,6 +170,13 @@ public class NestedContentConverter : BasePropertyConverter
         if (string.IsNullOrEmpty(valueString))
         {
             _logger.LogDebug("Property value is empty for {PropertyAlias}", property.Alias);
+            return Task.FromResult<object?>(null);
+        }
+
+        // Already in Block List format (JObject) — no conversion needed
+        if (valueString.TrimStart().StartsWith("{"))
+        {
+            _logger.LogDebug("Property {PropertyAlias} value is already in Block List format, skipping", property.Alias);
             return Task.FromResult<object?>(null);
         }
 

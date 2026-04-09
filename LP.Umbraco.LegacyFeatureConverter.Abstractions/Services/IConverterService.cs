@@ -43,4 +43,16 @@ public interface IConverterService
         string converterName,
         Guid[]? selectedKeys = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Computes a detailed conversion plan for a given converter and approach.
+    /// </summary>
+    /// <param name="converterName">The name of the converter.</param>
+    /// <param name="approach">How to discover affected document types and content.</param>
+    /// <param name="cancellationToken">Token to support cancellation.</param>
+    /// <returns>A plan describing every document type and content node to be changed.</returns>
+    Task<ConversionPlan> ComputePlanAsync(
+        string converterName,
+        ConversionApproach approach,
+        CancellationToken cancellationToken = default);
 }

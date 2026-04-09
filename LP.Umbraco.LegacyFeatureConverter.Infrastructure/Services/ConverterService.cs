@@ -65,6 +65,9 @@ public class ConverterService : IConverterService
                 {
                     Name = converter.ConverterName,
                     Description = converter.Description,
+                    ShortName = converter.ShortName,
+                    Icon = converter.Icon,
+                    Category = converter.Category,
                     SourceAliases = converter.SourcePropertyEditorAliases,
                     TargetAlias = converter.TargetPropertyEditorAlias,
                     AffectedDocumentTypesCount = count
@@ -143,5 +146,21 @@ public class ConverterService : IConverterService
         }
 
         return await Task.FromResult(documentTypeInfos.OrderBy(dt => dt.Name));
+    }
+
+    /// <inheritdoc />
+    public async Task<ConversionPlan> ComputePlanAsync(
+        string converterName,
+        ConversionApproach approach,
+        CancellationToken cancellationToken = default)
+    {
+        var converter = GetConverterByName(converterName);
+        if (converter == null)
+        {
+            _logger.LogWarning("Converter {ConverterName} not found", converterName);
+            return new ConversionPlan { Approach = approach, ComputedAt = DateTime.UtcNow };
+        }
+
+        return await converter.ComputePlanAsync(approach, cancellationToken);
     }
 }

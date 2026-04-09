@@ -120,24 +120,67 @@ public abstract class BasePropertyConverter : IPropertyConverter
                 "Conversion", $"Starting {ConverterName} conversion{(options.IsTestRun ? " (test run)" : "")}", null,
                 cancellationToken: cancellationToken);
 
-            // Phase 1: Scan document types for properties using source property editors
+            // Phase 1: Determine document types to process
             await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
-                "Conversion", "Phase 1: Scanning document types", null,
+                "Conversion", "Phase 1: Determining document types to process", null,
                 cancellationToken: cancellationToken);
 
-            ReportProgress(progress, result.ConversionId, "Scanning document types", "", 0, 0);
+            ReportProgress(progress, result.ConversionId, "Determining document types", "", 0, 0);
 
-            var documentTypes = await ScanDocumentTypesAsync(options.SelectedDocumentTypeKeys, cancellationToken);
-            result.DocumentTypes.AddRange(documentTypes.Select(dt => new DocumentTypeConversionInfo
+            // schemaDocTypes: need property editor alias updates (Phases 2–3)
+            // contentOnlyDocTypes: already on target editor, only content values need conversion (Phase 4b)
+            // null contentOnlyDocTypes = no plan provided, fall back to full Phase 4b scan
+            List<IContentType> documentTypes;
+            List<IContentType>? contentOnlyDocTypes;
+
+            if (options.Plan != null)
             {
-                Key = dt.Key,
-                Name = dt.Name,
-                Alias = dt.Alias
-            }));
+                var allDocTypesByKey = _contentTypeService.GetAll().ToDictionary(dt => dt.Key);
 
-            await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
-                "Conversion", $"Found {documentTypes.Count} document types to process", null,
-                cancellationToken: cancellationToken);
+                var planItems = options.Plan.DocumentTypes;
+                if (options.SelectedDocumentTypeKeys is { Length: > 0 })
+                {
+                    planItems = planItems
+                        .Where(d => options.SelectedDocumentTypeKeys.Contains(d.Key))
+                        .ToList();
+                }
+
+                documentTypes = planItems
+                    .Where(d => d.NeedsSchemaUpdate)
+                    .Where(d => allDocTypesByKey.ContainsKey(d.Key))
+                    .Select(d => allDocTypesByKey[d.Key])
+                    .ToList();
+
+                contentOnlyDocTypes = planItems
+                    .Where(d => !d.NeedsSchemaUpdate && d.NeedsContentUpdate)
+                    .Where(d => allDocTypesByKey.ContainsKey(d.Key))
+                    .Select(d => allDocTypesByKey[d.Key])
+                    .ToList();
+
+                await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
+                    "Conversion", $"Using pre-computed plan: {documentTypes.Count} doc type(s) need schema updates, " +
+                        $"{contentOnlyDocTypes.Count} need content-only updates", null,
+                    cancellationToken: cancellationToken);
+            }
+            else
+            {
+                documentTypes = await ScanDocumentTypesAsync(options.SelectedDocumentTypeKeys, cancellationToken);
+                contentOnlyDocTypes = null; // triggers full Phase 4b scan
+
+                await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
+                    "Conversion", $"Found {documentTypes.Count} document type(s) with source property editors", null,
+                    cancellationToken: cancellationToken);
+            }
+
+            result.DocumentTypes.AddRange(
+                documentTypes
+                    .Concat(contentOnlyDocTypes ?? Enumerable.Empty<IContentType>())
+                    .Select(dt => new DocumentTypeConversionInfo
+                    {
+                        Key = dt.Key,
+                        Name = dt.Name,
+                        Alias = dt.Alias
+                    }));
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -167,7 +210,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
                 "Conversion", "Phase 4: Converting content node data", null,
                 cancellationToken: cancellationToken);
 
-            await ConvertContentDataAsync(result, documentTypes, propertyAliasesToConvert, options, progress, cancellationToken);
+            await ConvertContentDataAsync(result, documentTypes, contentOnlyDocTypes, propertyAliasesToConvert, options, progress, cancellationToken);
 
             // Determine final status
             result.Status = result.FailureCount > 0
@@ -433,11 +476,11 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
                 if (wasModified)
                 {
-                    using (var scope = _scopeProvider.CreateScope())
+                    if (!isTestRun)
                     {
-                        _contentTypeService.Save(docType);
-                        if (!isTestRun)
+                        using (var scope = _scopeProvider.CreateScope())
                         {
+                            _contentTypeService.Save(docType);
                             scope.Complete();
                         }
                     }
@@ -521,11 +564,11 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
             if (compositionModified)
             {
-                using (var scope = _scopeProvider.CreateScope())
+                if (!isTestRun)
                 {
-                    _contentTypeService.Save(compositionType);
-                    if (!isTestRun)
+                    using (var scope = _scopeProvider.CreateScope())
                     {
+                        _contentTypeService.Save(compositionType);
                         scope.Complete();
                     }
                 }
@@ -566,6 +609,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
     protected virtual async Task ConvertContentDataAsync(
         ConversionResult result,
         List<IContentType> documentTypes,
+        List<IContentType>? contentOnlyDocTypes,
         Dictionary<int, HashSet<string>> propertyAliasesToConvert,
         ConversionOptions options,
         IProgress<ConversionProgress>? progress,
@@ -587,34 +631,66 @@ public abstract class BasePropertyConverter : IPropertyConverter
                 result, docType, aliasesToConvert, options, progress, cancellationToken);
         }
 
-        // === Scan 2: Doc types already using the target editor ===
-        // These were not found in Phase 1 (their editor was already correct), but their content
-        // values may still be in the old format. ConvertPropertyValueAsync returns null for values
-        // already in the target format, so only genuinely unconverted content is saved.
-        await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
-            "Conversion", "Phase 4b: Scanning content with target editor for unconverted values", null,
-            cancellationToken: cancellationToken);
-
-        var allDocTypes = _contentTypeService.GetAll();
-
-        foreach (var docType in allDocTypes)
+        // === Scan 2: Doc types already on target editor (uSync / Content approach) ===
+        // contentOnlyDocTypes != null  → use pre-computed plan (may be empty if approach=DocumentType)
+        // contentOnlyDocTypes == null  → no plan: fall back to scanning all doc types
+        if (contentOnlyDocTypes != null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (contentOnlyDocTypes.Count > 0)
+            {
+                await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
+                    "Conversion", $"Phase 4b: Converting content for {contentOnlyDocTypes.Count} pre-identified doc type(s) already on target editor", null,
+                    cancellationToken: cancellationToken);
 
-            if (processedDocTypeIds.Contains(docType.Id))
-                continue;
+                foreach (var docType in contentOnlyDocTypes)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-            var targetAliases = docType.PropertyTypes
-                .Concat(docType.CompositionPropertyTypes)
-                .Where(pt => pt.PropertyEditorAlias == TargetPropertyEditorAlias)
-                .Select(pt => pt.Alias)
-                .ToHashSet();
+                    if (processedDocTypeIds.Contains(docType.Id))
+                        continue;
 
-            if (targetAliases.Count == 0)
-                continue;
+                    var targetAliases = docType.PropertyTypes
+                        .Concat(docType.CompositionPropertyTypes)
+                        .Where(pt => pt.PropertyEditorAlias == TargetPropertyEditorAlias)
+                        .Select(pt => pt.Alias)
+                        .ToHashSet();
 
-            await ConvertContentForDocTypeAsync(
-                result, docType, targetAliases, options, progress, cancellationToken);
+                    if (targetAliases.Count == 0)
+                        continue;
+
+                    await ConvertContentForDocTypeAsync(
+                        result, docType, targetAliases, options, progress, cancellationToken);
+                }
+            }
+        }
+        else
+        {
+            // No plan: scan all remaining doc types with the target editor alias
+            await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
+                "Conversion", "Phase 4b: Scanning content with target editor for unconverted values", null,
+                cancellationToken: cancellationToken);
+
+            var allDocTypes = _contentTypeService.GetAll();
+
+            foreach (var docType in allDocTypes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (processedDocTypeIds.Contains(docType.Id))
+                    continue;
+
+                var targetAliases = docType.PropertyTypes
+                    .Concat(docType.CompositionPropertyTypes)
+                    .Where(pt => pt.PropertyEditorAlias == TargetPropertyEditorAlias)
+                    .Select(pt => pt.Alias)
+                    .ToHashSet();
+
+                if (targetAliases.Count == 0)
+                    continue;
+
+                await ConvertContentForDocTypeAsync(
+                    result, docType, targetAliases, options, progress, cancellationToken);
+            }
         }
     }
 
@@ -740,6 +816,120 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
             result.ContentNodes.Add(contentInfo);
         }
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<ConversionPlan> ComputePlanAsync(
+        ConversionApproach approach,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = new ConversionPlan
+        {
+            Approach = approach,
+            ComputedAt = DateTime.UtcNow
+        };
+
+        var addedDocTypeIds = new HashSet<int>();
+
+        // --- Part 1: Schema scan — always runs for both approaches ---
+        // Find all doc types whose properties still use the source property editor.
+        // Empty doc types are included: they need their schema updated even without content.
+        var sourceDocTypes = await ScanDocumentTypesAsync(null, cancellationToken);
+
+        foreach (var docType in sourceDocTypes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            addedDocTypeIds.Add(docType.Id);
+
+            var propertyCount = docType.PropertyTypes
+                .Concat(docType.CompositionPropertyTypes)
+                .Count(pt => SourcePropertyEditorAliases.Contains(pt.PropertyEditorAlias));
+
+            _contentService.GetPagedOfType(docType.Id, 0, 1, out long contentCount, null!);
+
+            plan.DocumentTypes.Add(new ConversionPlanDocType
+            {
+                Key = docType.Key,
+                Name = docType.Name ?? docType.Alias,
+                Alias = docType.Alias,
+                Icon = docType.Icon,
+                ContentNodeCount = (int)contentCount,
+                PropertyCount = propertyCount,
+                NeedsSchemaUpdate = true,
+                NeedsContentUpdate = true
+            });
+        }
+
+        // --- Part 2: Content value scan — Thorough approach only ---
+        // Scans doc types already on the target editor for content values that were not
+        // converted (uSync scenario, or recovery from a partial migration failure).
+        if (approach == ConversionApproach.Thorough)
+        {
+            var allDocTypes = _contentTypeService.GetAll();
+
+            foreach (var docType in allDocTypes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (addedDocTypeIds.Contains(docType.Id)) continue;
+
+                var targetAliases = docType.PropertyTypes
+                    .Concat(docType.CompositionPropertyTypes)
+                    .Where(pt => pt.PropertyEditorAlias == TargetPropertyEditorAlias)
+                    .Select(pt => pt.Alias)
+                    .ToHashSet();
+
+                if (targetAliases.Count == 0) continue;
+
+                var contentNodes = _contentService.GetPagedOfType(docType.Id, 0, int.MaxValue, out _, null!);
+                var unconvertedCount = 0;
+
+                foreach (var content in contentNodes)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var hasUnconverted = false;
+
+                    foreach (var property in content.Properties.Where(p => targetAliases.Contains(p.Alias)))
+                    {
+                        IEnumerable<string?> cultures = property.PropertyType.Variations.HasFlag(ContentVariation.Culture)
+                            ? property.Values.Select(v => v.Culture).Where(c => c != null).Distinct()
+                            : new string?[] { null };
+
+                        foreach (var culture in cultures)
+                        {
+                            var value = property.GetValue(culture);
+                            if (value == null) continue;
+                            var converted = await ConvertPropertyValueAsync(value, property);
+                            if (converted != null) { hasUnconverted = true; break; }
+                        }
+                        if (hasUnconverted) break;
+                    }
+
+                    if (hasUnconverted) unconvertedCount++;
+                }
+
+                if (unconvertedCount > 0)
+                {
+                    addedDocTypeIds.Add(docType.Id);
+                    plan.DocumentTypes.Add(new ConversionPlanDocType
+                    {
+                        Key = docType.Key,
+                        Name = docType.Name ?? docType.Alias,
+                        Alias = docType.Alias,
+                        Icon = docType.Icon,
+                        ContentNodeCount = unconvertedCount,
+                        PropertyCount = targetAliases.Count,
+                        NeedsSchemaUpdate = false,
+                        NeedsContentUpdate = true
+                    });
+                }
+            }
+        }
+
+        plan.DocumentTypes = plan.DocumentTypes.OrderBy(d => d.Name).ToList();
+        plan.TotalContentNodes = plan.DocumentTypes.Sum(d => d.ContentNodeCount);
+        plan.TotalPropertyCount = plan.DocumentTypes.Sum(d => d.PropertyCount);
+
+        return plan;
     }
 
     /// <summary>

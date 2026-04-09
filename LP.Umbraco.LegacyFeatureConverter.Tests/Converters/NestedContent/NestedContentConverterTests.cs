@@ -120,6 +120,41 @@ public class NestedContentConverterTests
     }
 
     [TestMethod]
+    public async Task ConvertPropertyValue_WithBlockListJObject_ReturnsNull()
+    {
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("nestedContent");
+
+        // A value already in Block List format (JObject, not JArray)
+        var blockListJson = @"{""layout"":{""Umbraco.BlockList"":[{""contentUdi"":""umb://element/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee""}]},""contentData"":[{""contentTypeKey"":""11111111-2222-3333-4444-555555555555"",""udi"":""umb://element/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"",""title"":""Hello""}],""settingsData"":[]}";
+
+        var result = await InvokeConvertPropertyValue(blockListJson, property.Object);
+
+        Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public async Task ConvertPropertyValue_WithBlockListJObject_DoesNotLogError()
+    {
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("nestedContent");
+
+        var blockListJson = @"{""layout"":{""Umbraco.BlockList"":[{""contentUdi"":""umb://element/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee""}]},""contentData"":[{""contentTypeKey"":""11111111-2222-3333-4444-555555555555"",""udi"":""umb://element/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"",""title"":""Hello""}],""settingsData"":[]}";
+
+        await InvokeConvertPropertyValue(blockListJson, property.Object);
+
+        // Should not log any errors — this is a normal "already converted" case
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
+    [TestMethod]
     public async Task ConvertPropertyValue_SimpleItem_ProducesValidBlockList()
     {
         var contentTypeKey = Guid.NewGuid();

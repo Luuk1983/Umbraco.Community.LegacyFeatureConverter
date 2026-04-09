@@ -63,6 +63,12 @@ public class MediaPickerConverter : BasePropertyConverter
     public override string ConverterName => "Legacy Media Picker to MediaPicker3";
 
     /// <inheritdoc />
+    public string ShortName => "Media Picker";
+
+    /// <inheritdoc />
+    public string Icon => "icon-picture";
+
+    /// <inheritdoc />
     public override string[] SourcePropertyEditorAliases => new[]
     {
         "Umbraco.MediaPicker2",

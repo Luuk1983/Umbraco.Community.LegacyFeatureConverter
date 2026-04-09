@@ -26,13 +26,17 @@ public class ConverterServiceTests
     /// Creates a fake converter for testing.
     /// </summary>
     private static Mock<IPropertyConverter> CreateFakeConverter(
-        string name, string[] sourceAliases, string targetAlias, string description = "Test")
+        string name, string[] sourceAliases, string targetAlias, string description = "Test",
+        string? shortName = null, string icon = "icon-axis-rotation", string category = "Property editor")
     {
         var mock = new Mock<IPropertyConverter>();
         mock.Setup(c => c.ConverterName).Returns(name);
         mock.Setup(c => c.SourcePropertyEditorAliases).Returns(sourceAliases);
         mock.Setup(c => c.TargetPropertyEditorAlias).Returns(targetAlias);
         mock.Setup(c => c.Description).Returns(description);
+        mock.Setup(c => c.ShortName).Returns(shortName ?? name);
+        mock.Setup(c => c.Icon).Returns(icon);
+        mock.Setup(c => c.Category).Returns(category);
         mock.Setup(c => c.GetAffectedDocumentTypesCountAsync(
                 It.IsAny<Guid[]?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
@@ -114,6 +118,26 @@ public class ConverterServiceTests
         Assert.AreEqual(3, metadata[0].AffectedDocumentTypesCount);
         Assert.AreEqual("Conv B", metadata[1].Name);
         Assert.AreEqual(5, metadata[1].AffectedDocumentTypesCount);
+    }
+
+    [TestMethod]
+    public async Task GetConverterMetadataAsync_IncludesShortNameIconAndCategory()
+    {
+        var converter = CreateFakeConverter(
+            "Nested Content to Block List", ["NC"], "BL", "Converts NC to BL",
+            shortName: "Nested Content", icon: "icon-list", category: "Property editor");
+        converter.Setup(c => c.GetAffectedDocumentTypesCountAsync(
+                It.IsAny<Guid[]?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        var service = CreateService(converter.Object);
+
+        var metadata = (await service.GetConverterMetadataAsync()).ToList();
+
+        Assert.AreEqual(1, metadata.Count);
+        Assert.AreEqual("Nested Content", metadata[0].ShortName);
+        Assert.AreEqual("icon-list", metadata[0].Icon);
+        Assert.AreEqual("Property editor", metadata[0].Category);
     }
 
     [TestMethod]

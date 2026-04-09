@@ -4,12 +4,13 @@
     angular.module('umbraco')
         .controller('legacyConverter.details.controller', LegacyConverterDetailsController);
 
-    LegacyConverterDetailsController.$inject = ['$scope', '$http', '$routeParams', '$location', '$window', 'notificationsService'];
+    LegacyConverterDetailsController.$inject = ['$scope', '$http', 'notificationsService'];
 
     /**
      * Details controller showing a single conversion's summary and log entries.
+     * Opened as a modal via editorService — reads conversionId from $scope.model.
      */
-    function LegacyConverterDetailsController($scope, $http, $routeParams, $location, $window, notificationsService) {
+    function LegacyConverterDetailsController($scope, $http, notificationsService) {
         var vm = this;
         var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
 
@@ -20,7 +21,7 @@
         vm.logs = [];
 
         // Methods
-        vm.goBack = goBack;
+        vm.close = close;
         vm.getStatusClass = getStatusClass;
         vm.getLogLevelClass = getLogLevelClass;
 
@@ -30,7 +31,7 @@
         // ===== Implementation =====
 
         function init() {
-            var conversionId = $routeParams.id;
+            var conversionId = $scope.model.conversionId;
             if (!conversionId) {
                 vm.loading = false;
                 return;
@@ -56,12 +57,8 @@
             });
         }
 
-        function goBack() {
-            if ($window.history.length > 1) {
-                $window.history.back();
-            } else {
-                $location.path('/settings/legacyConverter/overview');
-            }
+        function close() {
+            $scope.model.close();
         }
 
         function getStatusClass(status) {

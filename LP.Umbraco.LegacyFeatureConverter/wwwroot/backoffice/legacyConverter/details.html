@@ -3,15 +3,8 @@
         <umb-editor-header name="vm.title"
                            name-locked="true"
                            hide-icon="true"
-                           hide-alias="true">
-            <umb-editor-header-apps>
-                <umb-button type="button"
-                            button-style="info"
-                            size="xs"
-                            label-key="legacyConverter_backToOverview"
-                            action="vm.goBack()">
-                </umb-button>
-            </umb-editor-header-apps>
+                           hide-alias="true"
+                           hide-description="true">
         </umb-editor-header>
 
         <umb-editor-container>
@@ -78,14 +71,18 @@
                         </umb-empty-state>
 
                         <uui-table ng-if="vm.logs.length > 0">
+                            <uui-table-column style="width: 100px;"></uui-table-column>
+                            <uui-table-column style="width: 140px;"></uui-table-column>
+                            <uui-table-column style="width: 120px;"></uui-table-column>
+                            <uui-table-column></uui-table-column>
                             <uui-table-head>
-                                <uui-table-head-cell style="width: 100px;">
+                                <uui-table-head-cell>
                                     <localize key="legacyConverter_level">Level</localize>
                                 </uui-table-head-cell>
-                                <uui-table-head-cell style="width: 140px;">
+                                <uui-table-head-cell>
                                     <localize key="legacyConverter_timestamp">Time</localize>
                                 </uui-table-head-cell>
-                                <uui-table-head-cell style="width: 120px;">
+                                <uui-table-head-cell>
                                     <localize key="legacyConverter_itemType">Type</localize>
                                 </uui-table-head-cell>
                                 <uui-table-head-cell>
@@ -94,17 +91,13 @@
                             </uui-table-head>
                             <uui-table-row ng-repeat="log in vm.logs"
                                            ng-class="{'lfc-log--error': log.level === 'Error', 'lfc-log--warning': log.level === 'Warning'}">
-                                <uui-table-cell style="width: 100px;">
+                                <uui-table-cell>
                                     <uui-tag ng-class="vm.getLogLevelClass(log.level)" look="secondary">
                                         {{log.level}}
                                     </uui-tag>
                                 </uui-table-cell>
-                                <uui-table-cell style="width: 140px;">
-                                    {{log.timestamp | date:'HH:mm:ss'}}
-                                </uui-table-cell>
-                                <uui-table-cell style="width: 120px;">
-                                    {{log.itemType}}
-                                </uui-table-cell>
+                                <uui-table-cell>{{log.timestamp | date:'HH:mm:ss'}}</uui-table-cell>
+                                <uui-table-cell>{{log.itemType}}</uui-table-cell>
                                 <uui-table-cell>
                                     {{log.message}}
                                     <small ng-if="log.itemName" class="db text-muted">
@@ -122,5 +115,15 @@
                 <localize key="legacyConverter_conversionNotFound">Conversion not found.</localize>
             </umb-empty-state>
         </umb-editor-container>
+
+        <umb-editor-footer>
+            <umb-editor-footer-content-right>
+                <umb-button type="button"
+                            button-style="link"
+                            label-key="general_close"
+                            action="vm.close()">
+                </umb-button>
+            </umb-editor-footer-content-right>
+        </umb-editor-footer>
     </umb-editor-view>
 </div>

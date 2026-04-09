@@ -40,6 +40,201 @@
     flex-shrink: 0;
 }
 
+/* ===== Converter Cards (wizard step 1) ===== */
+.lfc-converter-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.lfc-converter-card {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    border: 2px solid var(--uui-color-border, #e9e9eb);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+    background: var(--uui-color-surface, #fff);
+}
+
+.lfc-converter-card:hover {
+    border-color: var(--uui-color-interactive, #2152a3);
+    background: var(--uui-color-surface-alt, #f6f4f4);
+}
+
+.lfc-converter-card.--selected {
+    border-color: var(--uui-color-interactive, #2152a3);
+    background: color-mix(in srgb, var(--uui-color-interactive, #2152a3) 6%, transparent);
+}
+
+.lfc-converter-card__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.lfc-converter-card__icon {
+    font-size: 28px;
+    color: var(--uui-color-interactive, #2152a3);
+    flex-shrink: 0;
+}
+
+.lfc-converter-card__title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.lfc-converter-card__category {
+    margin-bottom: 8px;
+    align-self: flex-start;
+}
+
+.lfc-converter-card__description {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--uui-color-text-alt, #68676b);
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+/* ===== Approach Selection ===== */
+.lfc-approach-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lfc-approach-block {
+    padding: 16px 18px;
+    border: 2px solid var(--uui-color-border, #e9e9eb);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+    background: var(--uui-color-surface, #fff);
+}
+
+.lfc-approach-block:hover {
+    border-color: var(--uui-color-interactive, #2152a3);
+    background: var(--uui-color-surface-alt, #f6f4f4);
+}
+
+.lfc-approach-block.--selected {
+    border-color: var(--uui-color-interactive, #2152a3);
+    background: color-mix(in srgb, var(--uui-color-interactive, #2152a3) 6%, transparent);
+}
+
+.lfc-approach-block__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.lfc-approach-block__icon {
+    font-size: 20px;
+    color: var(--uui-color-interactive, #2152a3);
+    flex-shrink: 0;
+}
+
+.lfc-approach-block__title {
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.lfc-approach-block__badge {
+    flex-shrink: 0;
+}
+
+.lfc-approach-block__description {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    color: var(--uui-color-text, #1b1b1f);
+}
+
+.lfc-approach-block__traits {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lfc-approach-block__pro,
+.lfc-approach-block__con {
+    font-size: 12px;
+    padding-left: 18px;
+    position: relative;
+}
+
+.lfc-approach-block__pro::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--uui-color-positive, #46a846);
+    font-weight: bold;
+}
+
+.lfc-approach-block__con::before {
+    content: '✗';
+    position: absolute;
+    left: 0;
+    color: var(--uui-color-danger, #d42054);
+}
+
+/* ===== Impact Overview ===== */
+.lfc-plan-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 0;
+    gap: 12px;
+}
+
+.lfc-impact-totals {
+    display: flex;
+    gap: 24px;
+    padding: 16px;
+    background: var(--uui-color-surface-alt, #f6f4f4);
+    border-radius: 6px;
+}
+
+.lfc-impact-total {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.lfc-impact-total__value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--uui-color-interactive, #2152a3);
+    line-height: 1;
+}
+
+.lfc-impact-total__label {
+    font-size: 12px;
+    color: var(--uui-color-text-alt, #68676b);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.lfc-impact-doctype {
+    display: flex;
+    align-items: center;
+}
+
+.lfc-row--deselected {
+    opacity: 0.45;
+}
+
+.mt2 { margin-top: 8px; }
+
 /* ===== Wizard Steps ===== */
 .lfc-wizard-steps {
     display: flex;
