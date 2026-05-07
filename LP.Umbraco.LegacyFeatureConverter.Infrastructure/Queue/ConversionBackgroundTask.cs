@@ -125,6 +125,7 @@ public class ConversionBackgroundTask : BackgroundService
             queueItem.Id);
 
         var converterService = scope.ServiceProvider.GetRequiredService<IConverterService>();
+        var progressFactory = scope.ServiceProvider.GetRequiredService<IProgressReporterFactory>();
         var options = DeserializeOptions(queueItem.SerializedOptions);
 
         if (options == null)
@@ -134,6 +135,7 @@ public class ConversionBackgroundTask : BackgroundService
                 queueItem.Id);
             await queueService.CompleteQueueItemAsync(
                 queueItem.Id, ConversionStatus.Failed, cancellationToken: cancellationToken);
+            await progressFactory.SendCompletedAsync(queueItem.Id, ConversionStatus.Failed, null);
             return;
         }
 
@@ -145,6 +147,7 @@ public class ConversionBackgroundTask : BackgroundService
                 options.ConverterType, queueItem.Id);
             await queueService.CompleteQueueItemAsync(
                 queueItem.Id, ConversionStatus.Failed, cancellationToken: cancellationToken);
+            await progressFactory.SendCompletedAsync(queueItem.Id, ConversionStatus.Failed, null);
             return;
         }
 
@@ -152,7 +155,7 @@ public class ConversionBackgroundTask : BackgroundService
         if (options.RunTestFirst && !options.IsTestRun)
         {
             var testPassed = await RunTestConversionAsync(
-                converter, options, queueItem.Id, queueService, cancellationToken);
+                converter, options, queueItem.Id, queueService, progressFactory, cancellationToken);
 
             if (!testPassed)
             {
@@ -165,7 +168,7 @@ public class ConversionBackgroundTask : BackgroundService
 
         // Execute the actual conversion
         await ExecuteConversionAsync(
-            converter, options, queueItem.Id, queueService, cancellationToken);
+            converter, options, queueItem.Id, queueService, progressFactory, cancellationToken);
     }
 
     /// <summary>
@@ -182,6 +185,7 @@ public class ConversionBackgroundTask : BackgroundService
         ConversionOptions options,
         Guid queueItemId,
         IConversionQueueService queueService,
+        IProgressReporterFactory progressFactory,
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
@@ -198,8 +202,9 @@ public class ConversionBackgroundTask : BackgroundService
             PerformingUserKey = options.PerformingUserKey
         };
 
+        var progress = progressFactory.Create(queueItemId);
         var testResult = await converter.ExecuteConversionAsync(
-            testOptions, cancellationToken: cancellationToken);
+            testOptions, progress: progress, cancellationToken: cancellationToken);
 
         if (testResult.Status == ConversionStatus.Failed)
         {
@@ -210,6 +215,9 @@ public class ConversionBackgroundTask : BackgroundService
             await queueService.CompleteQueueItemAsync(
                 queueItemId, ConversionStatus.Failed,
                 testResult.ConversionId, cancellationToken);
+
+            await progressFactory.SendCompletedAsync(
+                queueItemId, ConversionStatus.Failed, testResult.ConversionId);
 
             return false;
         }
@@ -234,15 +242,21 @@ public class ConversionBackgroundTask : BackgroundService
         ConversionOptions options,
         Guid queueItemId,
         IConversionQueueService queueService,
+        IProgressReporterFactory progressFactory,
         CancellationToken cancellationToken)
     {
+        var progress = progressFactory.Create(queueItemId);
+
         try
         {
             var result = await converter.ExecuteConversionAsync(
-                options, cancellationToken: cancellationToken);
+                options, progress: progress, cancellationToken: cancellationToken);
 
             await queueService.CompleteQueueItemAsync(
                 queueItemId, result.Status, result.ConversionId, cancellationToken);
+
+            await progressFactory.SendCompletedAsync(
+                queueItemId, result.Status, result.ConversionId);
 
             _logger.LogInformation(
                 "Legacy Feature Converter: Queue item {QueueItemId} completed with status {Status}",
@@ -252,6 +266,10 @@ public class ConversionBackgroundTask : BackgroundService
         {
             await queueService.CompleteQueueItemAsync(
                 queueItemId, ConversionStatus.Cancelled, cancellationToken: default);
+
+            await progressFactory.SendCompletedAsync(
+                queueItemId, ConversionStatus.Cancelled, null);
+
             throw;
         }
         catch (Exception ex)
@@ -262,6 +280,9 @@ public class ConversionBackgroundTask : BackgroundService
 
             await queueService.CompleteQueueItemAsync(
                 queueItemId, ConversionStatus.Failed, cancellationToken: default);
+
+            await progressFactory.SendCompletedAsync(
+                queueItemId, ConversionStatus.Failed, null);
         }
     }
 

@@ -48,6 +48,21 @@
                                     <uui-tag ng-class="vm.getStatusClass(item.status)" look="secondary">
                                         {{item.status}}
                                     </uui-tag>
+                                    <div ng-if="item.status === 'Running' && vm.getProgress(item)"
+                                         class="lfc-progress-info">
+                                        <uui-progress-bar progress="{{vm.getOverallPercent(vm.getProgress(item))}}">
+                                        </uui-progress-bar>
+                                        <small class="text-muted">
+                                            {{vm.getProgress(item).phase}}
+                                            <span ng-if="vm.getProgress(item).currentItem">
+                                                &mdash; {{vm.getProgress(item).currentItem}}
+                                            </span>
+                                        </small>
+                                        <small class="text-muted"
+                                               ng-if="vm.getProgress(item).totalCount > 0">
+                                            {{vm.getProgress(item).processedCount}} / {{vm.getProgress(item).totalCount}}
+                                        </small>
+                                    </div>
                                 </uui-table-cell>
                                 <uui-table-cell>{{item.queuedAt | date:'short'}}</uui-table-cell>
                                 <uui-table-cell>

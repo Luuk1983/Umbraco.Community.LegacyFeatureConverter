@@ -361,6 +361,18 @@
 .lfc-status--info { color: var(--uui-color-interactive, #2152a3) !important; }
 .lfc-status--muted { color: var(--uui-color-text-alt, #68676b) !important; }
 
+/* ===== Queue Progress ===== */
+.lfc-progress-info {
+    margin-top: 8px;
+}
+
+.lfc-progress-info small {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.3;
+}
+
 /* ===== Log Entries ===== */
 .lfc-log--error {
     background: rgba(212, 32, 84, 0.04);

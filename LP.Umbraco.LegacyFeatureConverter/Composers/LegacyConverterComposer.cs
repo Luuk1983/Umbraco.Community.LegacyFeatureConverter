@@ -4,13 +4,16 @@ using LP.Umbraco.LegacyFeatureConverter.Converters.MediaPicker;
 using LP.Umbraco.LegacyFeatureConverter.Converters.NestedContent;
 using LP.Umbraco.LegacyFeatureConverter.Data;
 using LP.Umbraco.LegacyFeatureConverter.Data.Migrations;
+using LP.Umbraco.LegacyFeatureConverter.Hubs;
 using LP.Umbraco.LegacyFeatureConverter.Infrastructure.Queue;
 using LP.Umbraco.LegacyFeatureConverter.Infrastructure.Services;
 using LP.Umbraco.LegacyFeatureConverter.Services;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Notifications;
+using Umbraco.Cms.Web.Common.ApplicationBuilder;
 using Umbraco.Extensions;
 
 namespace LP.Umbraco.LegacyFeatureConverter.Composers;
@@ -35,6 +38,7 @@ public class LegacyConverterComposer : IComposer
         builder.Services.AddScoped<IConversionHistoryService, ConversionHistoryService>();
         builder.Services.AddScoped<IConversionQueueService, ConversionQueueService>();
         builder.Services.AddScoped<IConverterService, ConverterService>();
+        builder.Services.AddScoped<IProgressReporterFactory, SignalRProgressReporterFactory>();
 
         // === Built-in converters (auto-discovered via IEnumerable<IPropertyConverter>) ===
         builder.Services.AddScoped<IPropertyConverter, NestedContentConverter>();
@@ -42,6 +46,27 @@ public class LegacyConverterComposer : IComposer
 
         // === Background task (queue processing) ===
         builder.Services.AddHostedService<ConversionBackgroundTask>();
+
+        // === SignalR (real-time progress) ===
+        builder.Services.AddSignalR();
+        builder.Services.AddSingleton<ConversionHubRoutes>();
+        builder.Services.Configure<UmbracoPipelineOptions>(options =>
+        {
+            options.AddFilter(new UmbracoPipelineFilter(
+                "LegacyFeatureConverter",
+                applicationBuilder => { },
+                applicationBuilder => { },
+                applicationBuilder =>
+                {
+                    applicationBuilder.UseEndpoints(endpoints =>
+                    {
+                        var hubRoutes = applicationBuilder.ApplicationServices
+                            .GetRequiredService<ConversionHubRoutes>();
+                        hubRoutes.CreateRoutes(endpoints);
+                    });
+                }
+            ));
+        });
 
         // === Database migration on startup ===
         builder.AddNotificationAsyncHandler<UmbracoApplicationStartingNotification,

@@ -5,23 +5,26 @@
         .controller('legacyConverter.overview.controller', LegacyConverterOverviewController);
 
     LegacyConverterOverviewController.$inject = [
-        '$scope', '$http', '$interval', 'notificationsService', 'editorService'
+        '$scope', '$http', '$interval', 'notificationsService', 'editorService', 'assetsService'
     ];
 
     /**
      * Main overview controller for the Legacy Feature Converter.
      * Shows available converters, active queue, and conversion history.
+     * Uses SignalR for real-time progress updates with polling as fallback.
      */
-    function LegacyConverterOverviewController($scope, $http, $interval, notificationsService, editorService) {
+    function LegacyConverterOverviewController($scope, $http, $interval, notificationsService, editorService, assetsService) {
         var vm = this;
         var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
         var pollInterval;
+        var hubConnection;
 
         // State
         vm.loading = true;
         vm.converters = [];
         vm.queue = [];
         vm.history = { items: [], pageNumber: 1, pageSize: 10, totalPages: 0, totalItems: 0 };
+        vm.progressMap = {}; // Keyed by queueItemId
 
         // Internal tracking for auto-refresh
         var _queueHadActiveItems = false;
@@ -32,6 +35,8 @@
         vm.cancelQueueItem = cancelQueueItem;
         vm.getStatusClass = getStatusClass;
         vm.getConverterType = getConverterType;
+        vm.getProgress = getProgress;
+        vm.getOverallPercent = getOverallPercent;
         vm.nextPage = function (pageNumber) { loadHistory(pageNumber); };
         vm.prevPage = function (pageNumber) { loadHistory(pageNumber); };
         vm.goToPage = function (pageNumber) { loadHistory(pageNumber); };
@@ -39,9 +44,12 @@
         // Initialize
         init();
 
-        // Cleanup polling on scope destroy
+        // Cleanup on scope destroy
         $scope.$on('$destroy', function () {
             if (pollInterval) $interval.cancel(pollInterval);
+            if (hubConnection) {
+                hubConnection.stop();
+            }
         });
 
         // ===== Implementation =====
@@ -52,10 +60,46 @@
             loadQueue();
             loadHistory(1);
 
-            // Poll queue status every 5 seconds for real-time updates
+            // Poll queue status every 5 seconds as fallback
             pollInterval = $interval(function () {
                 loadQueue();
             }, 5000);
+
+            // Set up real-time progress via SignalR
+            initSignalR();
+        }
+
+        function initSignalR() {
+            var signalRScript = Umbraco.Sys.ServerVariables.umbracoSettings.umbracoPath
+                + '/lib/signalr/signalr.min.js';
+
+            assetsService.loadJs(signalRScript).then(function () {
+                var hubUrl = Umbraco.Sys.ServerVariables.umbracoSettings.umbracoPath
+                    + '/LegacyFeatureConverter/ConversionHub';
+
+                hubConnection = new signalR.HubConnectionBuilder()
+                    .withUrl(hubUrl)
+                    .withAutomaticReconnect()
+                    .build();
+
+                hubConnection.on('ReceiveProgress', function (progress) {
+                    $scope.$apply(function () {
+                        vm.progressMap[progress.queueItemId] = progress;
+                    });
+                });
+
+                hubConnection.on('ConversionCompleted', function (queueItemId, status, conversionHistoryId) {
+                    $scope.$apply(function () {
+                        delete vm.progressMap[queueItemId];
+                        loadQueue();
+                        loadHistory(1);
+                    });
+                });
+
+                hubConnection.start().catch(function (err) {
+                    console.warn('Legacy Converter: SignalR connection failed, relying on polling', err);
+                });
+            });
         }
 
         function loadConverters() {
@@ -157,6 +201,37 @@
             } catch (e) {
                 return 'Unknown';
             }
+        }
+
+        /**
+         * Gets the current progress for a queue item, if available.
+         */
+        function getProgress(item) {
+            return vm.progressMap[item.id] || null;
+        }
+
+        /**
+         * Computes a weighted overall percentage across all 4 conversion phases.
+         * Phase weights reflect typical relative durations:
+         *   Determining document types: 5%
+         *   Creating data types: 15%
+         *   Updating document types: 15%
+         *   Converting content: 65%
+         */
+        function getOverallPercent(progress) {
+            if (!progress) return 0;
+
+            var phaseWeights = {
+                'Determining document types': { base: 0, weight: 5 },
+                'Creating data types': { base: 5, weight: 15 },
+                'Updating document types': { base: 20, weight: 15 },
+                'Converting content': { base: 35, weight: 65 }
+            };
+
+            var phaseInfo = phaseWeights[progress.phase];
+            if (!phaseInfo) return progress.percentComplete;
+
+            return Math.round(phaseInfo.base + (phaseInfo.weight * progress.percentComplete / 100));
         }
     }
 })();

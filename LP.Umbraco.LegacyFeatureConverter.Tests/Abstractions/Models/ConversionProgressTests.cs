@@ -74,4 +74,24 @@ public class ConversionProgressTests
 
         Assert.AreEqual(ConversionStatus.Running, progress.Status);
     }
+
+    [TestMethod]
+    public void QueueItemId_DefaultsToNull()
+    {
+        var progress = new ConversionProgress();
+
+        Assert.IsNull(progress.QueueItemId);
+    }
+
+    [TestMethod]
+    public void QueueItemId_CanBeSet()
+    {
+        var queueItemId = Guid.NewGuid();
+        var progress = new ConversionProgress
+        {
+            QueueItemId = queueItemId
+        };
+
+        Assert.AreEqual(queueItemId, progress.QueueItemId);
+    }
 }

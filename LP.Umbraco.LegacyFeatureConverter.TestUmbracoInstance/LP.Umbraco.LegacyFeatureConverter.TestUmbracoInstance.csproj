@@ -21,11 +21,6 @@
     <Folder Include="umbraco\DB_nested_content_backup\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="umbraco\Data\Umbraco.mdf" />
-    <None Include="umbraco\Data\Umbraco_log.ldf" />
-  </ItemGroup>
-
   <PropertyGroup>
     <!-- Razor files are needed for the backoffice to work correctly -->
     <CopyRazorGenerateFilesToPublishDirectory>true</CopyRazorGenerateFilesToPublishDirectory>

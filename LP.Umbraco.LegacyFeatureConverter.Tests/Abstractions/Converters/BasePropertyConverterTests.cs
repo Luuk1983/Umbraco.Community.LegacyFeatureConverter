@@ -60,14 +60,14 @@ internal class TestableConverter : BasePropertyConverter
     /// <summary>
     /// Exposes the protected ConvertContentForDocTypeAsync for testing.
     /// </summary>
-    public Task TestConvertContentForDocTypeAsync(
+    public Task<int> TestConvertContentForDocTypeAsync(
         ConversionResult result,
         IContentType docType,
         HashSet<string> aliasesToConvert,
         ConversionOptions options,
         CancellationToken cancellationToken = default)
     {
-        return ConvertContentForDocTypeAsync(result, docType, aliasesToConvert, options, null, cancellationToken);
+        return ConvertContentForDocTypeAsync(result, docType, aliasesToConvert, options, null, 0, 0, cancellationToken);
     }
 }
 

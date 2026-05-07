@@ -12,6 +12,12 @@ public class ConversionProgress
     public Guid ConversionId { get; set; }
 
     /// <summary>
+    /// Gets or sets the queue item ID this progress belongs to.
+    /// Set by the SignalR progress reporter to enable UI mapping from progress events to queue items.
+    /// </summary>
+    public Guid? QueueItemId { get; set; }
+
+    /// <summary>
     /// Gets or sets the current phase of the conversion (e.g., "Scanning document types",
     /// "Creating data types", "Updating document types", "Converting content").
     /// </summary>

@@ -615,25 +615,23 @@ public abstract class BasePropertyConverter : IPropertyConverter
         IProgress<ConversionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        // === Scan 1: Doc types whose editor was just updated in Phase 3 ===
+        // Pre-compute which doc types will be processed and their content counts
+        // so we can report cumulative progress across all doc types in Phase 4.
+        var docTypesToProcess = new List<(IContentType DocType, HashSet<string> Aliases)>();
         var processedDocTypeIds = new HashSet<int>();
 
+        // === Gather Scan 1: Doc types whose editor was just updated in Phase 3 ===
         foreach (var docType in documentTypes)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             processedDocTypeIds.Add(docType.Id);
 
             if (!propertyAliasesToConvert.TryGetValue(docType.Id, out var aliasesToConvert))
                 continue;
 
-            await ConvertContentForDocTypeAsync(
-                result, docType, aliasesToConvert, options, progress, cancellationToken);
+            docTypesToProcess.Add((docType, aliasesToConvert));
         }
 
-        // === Scan 2: Doc types already on target editor (uSync / Content approach) ===
-        // contentOnlyDocTypes != null  → use pre-computed plan (may be empty if approach=DocumentType)
-        // contentOnlyDocTypes == null  → no plan: fall back to scanning all doc types
+        // === Gather Scan 2: Doc types already on target editor ===
         if (contentOnlyDocTypes != null)
         {
             if (contentOnlyDocTypes.Count > 0)
@@ -644,8 +642,6 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
                 foreach (var docType in contentOnlyDocTypes)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
                     if (processedDocTypeIds.Contains(docType.Id))
                         continue;
 
@@ -658,8 +654,8 @@ public abstract class BasePropertyConverter : IPropertyConverter
                     if (targetAliases.Count == 0)
                         continue;
 
-                    await ConvertContentForDocTypeAsync(
-                        result, docType, targetAliases, options, progress, cancellationToken);
+                    processedDocTypeIds.Add(docType.Id);
+                    docTypesToProcess.Add((docType, targetAliases));
                 }
             }
         }
@@ -674,8 +670,6 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
             foreach (var docType in allDocTypes)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
                 if (processedDocTypeIds.Contains(docType.Id))
                     continue;
 
@@ -688,9 +682,28 @@ public abstract class BasePropertyConverter : IPropertyConverter
                 if (targetAliases.Count == 0)
                     continue;
 
-                await ConvertContentForDocTypeAsync(
-                    result, docType, targetAliases, options, progress, cancellationToken);
+                processedDocTypeIds.Add(docType.Id);
+                docTypesToProcess.Add((docType, targetAliases));
             }
+        }
+
+        // Pre-compute total content count across all doc types for cumulative progress
+        var totalContentCount = 0;
+        foreach (var (docType, _) in docTypesToProcess)
+        {
+            _contentService.GetPagedOfType(docType.Id, 0, 0, out long count, null!);
+            totalContentCount += (int)count;
+        }
+
+        // Process all doc types with cumulative progress tracking
+        var cumulativeProcessed = 0;
+        foreach (var (docType, aliases) in docTypesToProcess)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            cumulativeProcessed = await ConvertContentForDocTypeAsync(
+                result, docType, aliases, options, progress,
+                cumulativeProcessed, totalContentCount, cancellationToken);
         }
     }
 
@@ -707,27 +720,30 @@ public abstract class BasePropertyConverter : IPropertyConverter
     /// <param name="aliasesToConvert">The property aliases to check and convert.</param>
     /// <param name="options">The conversion options (for StopOnError and IsTestRun).</param>
     /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="cumulativeProcessed">Cumulative count of content nodes processed across all doc types so far.</param>
+    /// <param name="totalContentCount">Total content nodes to process across all doc types.</param>
     /// <param name="cancellationToken">Token to support cancellation.</param>
-    protected virtual async Task ConvertContentForDocTypeAsync(
+    /// <returns>The updated cumulative processed count after this doc type's content is processed.</returns>
+    protected virtual async Task<int> ConvertContentForDocTypeAsync(
         ConversionResult result,
         IContentType docType,
         HashSet<string> aliasesToConvert,
         ConversionOptions options,
         IProgress<ConversionProgress>? progress,
+        int cumulativeProcessed,
+        int totalContentCount,
         CancellationToken cancellationToken)
     {
         var contentNodes = _contentService.GetPagedOfType(
             docType.Id, 0, int.MaxValue, out long totalRecords, null!);
 
-        var processedCount = 0;
-
         foreach (var content in contentNodes)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            processedCount++;
+            cumulativeProcessed++;
             ReportProgress(progress, result.ConversionId, "Converting content",
-                content.Name ?? $"Content {content.Id}", processedCount, (int)totalRecords);
+                content.Name ?? $"Content {content.Id}", cumulativeProcessed, totalContentCount);
 
             var contentInfo = new ContentConversionInfo
             {
@@ -816,6 +832,8 @@ public abstract class BasePropertyConverter : IPropertyConverter
 
             result.ContentNodes.Add(contentInfo);
         }
+
+        return cumulativeProcessed;
     }
 
     /// <inheritdoc />

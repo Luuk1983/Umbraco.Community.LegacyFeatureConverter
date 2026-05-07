@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 
+// ReSharper disable AccessToDisposedClosure
+
 namespace LP.Umbraco.LegacyFeatureConverter.Tests.Infrastructure.Queue;
 
 [TestClass]
@@ -17,6 +19,7 @@ public class ConversionBackgroundTaskTests
     private Mock<IServiceProvider> _serviceProviderMock = null!;
     private Mock<IConversionQueueService> _queueServiceMock = null!;
     private Mock<IConverterService> _converterServiceMock = null!;
+    private Mock<IProgressReporterFactory> _progressFactoryMock = null!;
     private Mock<ILogger<ConversionBackgroundTask>> _loggerMock = null!;
 
     [TestInitialize]
@@ -27,6 +30,7 @@ public class ConversionBackgroundTaskTests
         _serviceProviderMock = new Mock<IServiceProvider>();
         _queueServiceMock = new Mock<IConversionQueueService>();
         _converterServiceMock = new Mock<IConverterService>();
+        _progressFactoryMock = new Mock<IProgressReporterFactory>();
         _loggerMock = new Mock<ILogger<ConversionBackgroundTask>>();
 
         _scopeMock.Setup(s => s.ServiceProvider).Returns(_serviceProviderMock.Object);
@@ -36,6 +40,14 @@ public class ConversionBackgroundTaskTests
             .Returns(_queueServiceMock.Object);
         _serviceProviderMock.Setup(p => p.GetService(typeof(IConverterService)))
             .Returns(_converterServiceMock.Object);
+        _serviceProviderMock.Setup(p => p.GetService(typeof(IProgressReporterFactory)))
+            .Returns(_progressFactoryMock.Object);
+
+        _progressFactoryMock.Setup(f => f.Create(It.IsAny<Guid>()))
+            .Returns(Mock.Of<IProgress<ConversionProgress>>());
+        _progressFactoryMock.Setup(f => f.SendCompletedAsync(
+                It.IsAny<Guid>(), It.IsAny<ConversionStatus>(), It.IsAny<Guid?>()))
+            .Returns(Task.CompletedTask);
     }
 
     /// <summary>
@@ -347,6 +359,224 @@ public class ConversionBackgroundTaskTests
             queueItem.Id,
             ConversionStatus.Failed,
             It.IsAny<Guid?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task WhenItemDequeued_PassesProgressReporterToConverter()
+    {
+        var options = new ConversionOptions
+        {
+            ConverterType = "Test Converter",
+            IsTestRun = false,
+            PerformingUserKey = Guid.NewGuid()
+        };
+
+        var queueItem = new QueueItem
+        {
+            Id = Guid.NewGuid(),
+            SerializedOptions = JsonSerializer.Serialize(options),
+            Status = ConversionStatus.Running
+        };
+
+        var callCount = 0;
+        _queueServiceMock.Setup(q => q.DequeueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ++callCount == 1 ? queueItem : null);
+
+        var converterMock = new Mock<IPropertyConverter>();
+        converterMock.Setup(c => c.ExecuteConversionAsync(
+                It.IsAny<ConversionOptions>(),
+                It.IsAny<IProgress<ConversionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ConversionResult
+            {
+                ConversionId = Guid.NewGuid(),
+                Status = ConversionStatus.Completed
+            });
+
+        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+            .Returns(converterMock.Object);
+
+        var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await task.StartAsync(cts.Token);
+        await Task.Delay(500);
+        await task.StopAsync(CancellationToken.None);
+
+        // Verify progress reporter was created for this queue item
+        _progressFactoryMock.Verify(
+            f => f.Create(queueItem.Id),
+            Times.Once);
+
+        // Verify converter received a non-null progress reporter
+        converterMock.Verify(c => c.ExecuteConversionAsync(
+            It.IsAny<ConversionOptions>(),
+            It.IsNotNull<IProgress<ConversionProgress>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task WhenConversionCompletes_CallsSendCompletedAsync()
+    {
+        var conversionId = Guid.NewGuid();
+        var options = new ConversionOptions
+        {
+            ConverterType = "Test Converter",
+            IsTestRun = false,
+            PerformingUserKey = Guid.NewGuid()
+        };
+
+        var queueItem = new QueueItem
+        {
+            Id = Guid.NewGuid(),
+            SerializedOptions = JsonSerializer.Serialize(options),
+            Status = ConversionStatus.Running
+        };
+
+        var callCount = 0;
+        _queueServiceMock.Setup(q => q.DequeueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ++callCount == 1 ? queueItem : null);
+
+        var converterMock = new Mock<IPropertyConverter>();
+        converterMock.Setup(c => c.ExecuteConversionAsync(
+                It.IsAny<ConversionOptions>(),
+                It.IsAny<IProgress<ConversionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ConversionResult
+            {
+                ConversionId = conversionId,
+                Status = ConversionStatus.Completed
+            });
+
+        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+            .Returns(converterMock.Object);
+
+        var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await task.StartAsync(cts.Token);
+        await Task.Delay(500);
+        await task.StopAsync(CancellationToken.None);
+
+        _progressFactoryMock.Verify(
+            f => f.SendCompletedAsync(
+                queueItem.Id,
+                ConversionStatus.Completed,
+                conversionId),
+            Times.Once);
+    }
+
+    [TestMethod]
+    public async Task WhenConversionFails_CallsSendCompletedAsyncWithFailed()
+    {
+        var options = new ConversionOptions
+        {
+            ConverterType = "Test Converter",
+            IsTestRun = false,
+            PerformingUserKey = Guid.NewGuid()
+        };
+
+        var queueItem = new QueueItem
+        {
+            Id = Guid.NewGuid(),
+            SerializedOptions = JsonSerializer.Serialize(options),
+            Status = ConversionStatus.Running
+        };
+
+        var callCount = 0;
+        _queueServiceMock.Setup(q => q.DequeueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ++callCount == 1 ? queueItem : null);
+
+        var converterMock = new Mock<IPropertyConverter>();
+        converterMock.Setup(c => c.ExecuteConversionAsync(
+                It.IsAny<ConversionOptions>(),
+                It.IsAny<IProgress<ConversionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Something broke"));
+
+        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+            .Returns(converterMock.Object);
+
+        var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await task.StartAsync(cts.Token);
+        await Task.Delay(500);
+        await task.StopAsync(CancellationToken.None);
+
+        _progressFactoryMock.Verify(
+            f => f.SendCompletedAsync(
+                queueItem.Id,
+                ConversionStatus.Failed,
+                It.IsAny<Guid?>()),
+            Times.Once);
+    }
+
+    [TestMethod]
+    public async Task RunTestFirst_PassesProgressReporterToTestRun()
+    {
+        var options = new ConversionOptions
+        {
+            ConverterType = "Test Converter",
+            IsTestRun = false,
+            RunTestFirst = true,
+            PerformingUserKey = Guid.NewGuid()
+        };
+
+        var queueItem = new QueueItem
+        {
+            Id = Guid.NewGuid(),
+            SerializedOptions = JsonSerializer.Serialize(options),
+            Status = ConversionStatus.Running
+        };
+
+        var callCount = 0;
+        _queueServiceMock.Setup(q => q.DequeueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ++callCount == 1 ? queueItem : null);
+
+        var converterMock = new Mock<IPropertyConverter>();
+        // Test run succeeds
+        converterMock.Setup(c => c.ExecuteConversionAsync(
+                It.Is<ConversionOptions>(o => o.IsTestRun),
+                It.IsAny<IProgress<ConversionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ConversionResult
+            {
+                ConversionId = Guid.NewGuid(),
+                Status = ConversionStatus.Completed
+            });
+
+        // Actual conversion also succeeds
+        converterMock.Setup(c => c.ExecuteConversionAsync(
+                It.Is<ConversionOptions>(o => !o.IsTestRun),
+                It.IsAny<IProgress<ConversionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ConversionResult
+            {
+                ConversionId = Guid.NewGuid(),
+                Status = ConversionStatus.Completed
+            });
+
+        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+            .Returns(converterMock.Object);
+
+        var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await task.StartAsync(cts.Token);
+        await Task.Delay(500);
+        await task.StopAsync(CancellationToken.None);
+
+        // Both test run and actual conversion should receive non-null progress reporters
+        converterMock.Verify(c => c.ExecuteConversionAsync(
+            It.Is<ConversionOptions>(o => o.IsTestRun),
+            It.IsNotNull<IProgress<ConversionProgress>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+
+        converterMock.Verify(c => c.ExecuteConversionAsync(
+            It.Is<ConversionOptions>(o => !o.IsTestRun),
+            It.IsNotNull<IProgress<ConversionProgress>>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }
