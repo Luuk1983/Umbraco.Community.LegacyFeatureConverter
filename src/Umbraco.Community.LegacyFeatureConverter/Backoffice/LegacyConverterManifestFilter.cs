@@ -20,13 +20,13 @@ public class LegacyConverterManifestFilter : IManifestFilter
             PackageName = "Umbraco.Community.LegacyFeatureConverter",
             Scripts = new[]
             {
-                "/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/overview.controller.js",
-                "/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/wizard.controller.js",
-                "/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/details.controller.js",
+                "/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/overview.controller.js",
+                "/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/wizard.controller.js",
+                "/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/details.controller.js",
             },
             Stylesheets = new[]
             {
-                "/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/legacyConverter.css",
+                "/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/legacyConverter.css",
             }
         });
     }

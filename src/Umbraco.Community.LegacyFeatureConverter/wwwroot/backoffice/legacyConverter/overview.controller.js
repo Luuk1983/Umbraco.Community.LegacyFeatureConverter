@@ -147,7 +147,7 @@
             editorService.open({
                 title: 'Start a new conversion',
                 size: 'medium',
-                view: '/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/wizard.html',
+                view: '/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/wizard.html',
                 converters: vm.converters,
                 submit: function (model) {
                     editorService.close();
@@ -164,7 +164,7 @@
             editorService.open({
                 title: 'Conversion details',
                 size: 'large',
-                view: '/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/details.html',
+                view: '/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/details.html',
                 conversionId: conversionId,
                 close: function () {
                     editorService.close();
