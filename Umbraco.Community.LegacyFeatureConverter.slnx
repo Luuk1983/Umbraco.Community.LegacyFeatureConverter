@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="Umbraco.Community.LegacyFeatureConverter.Abstractions/Umbraco.Community.LegacyFeatureConverter.Abstractions.csproj" />
+  <Project Path="Umbraco.Community.LegacyFeatureConverter.Converters/Umbraco.Community.LegacyFeatureConverter.Converters.csproj" />
+  <Project Path="Umbraco.Community.LegacyFeatureConverter.Data/Umbraco.Community.LegacyFeatureConverter.Data.csproj" />
+  <Project Path="Umbraco.Community.LegacyFeatureConverter.Infrastructure/Umbraco.Community.LegacyFeatureConverter.Infrastructure.csproj" />
+  <Project Path="Umbraco.Community.LegacyFeatureConverter.Tests/Umbraco.Community.LegacyFeatureConverter.Tests.csproj" />
+  <Project Path="Umbraco.Community.LegacyFeatureConverter.TestUmbracoInstance/Umbraco.Community.LegacyFeatureConverter.TestUmbracoInstance.csproj" />
+  <Project Path="Umbraco.Community.LegacyFeatureConverter/Umbraco.Community.LegacyFeatureConverter.csproj" />
+</Solution>
