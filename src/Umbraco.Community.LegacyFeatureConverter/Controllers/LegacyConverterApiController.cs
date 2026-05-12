@@ -21,7 +21,7 @@ namespace Umbraco.Community.LegacyFeatureConverter.Controllers;
 /// Conversions are queued for background processing rather than executed synchronously.
 /// </summary>
 [IsBackOffice]
-[PluginController("LegacyFeatureConverter")]
+[PluginController("Umbraco.Community.LegacyFeatureConverter")]
 [Authorize(Policy = AuthorizationPolicies.SectionAccessSettings)]
 public class LegacyConverterApiController : UmbracoApiController
 {

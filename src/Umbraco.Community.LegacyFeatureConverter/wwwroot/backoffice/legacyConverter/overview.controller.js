@@ -15,7 +15,7 @@
      */
     function LegacyConverterOverviewController($scope, $http, $interval, notificationsService, editorService, assetsService) {
         var vm = this;
-        var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
+        var apiBase = '/umbraco/backoffice/Umbraco.Community.LegacyFeatureConverter/LegacyConverterApi';
         var pollInterval;
         var hubConnection;
 
@@ -75,7 +75,7 @@
 
             assetsService.loadJs(signalRScript).then(function () {
                 var hubUrl = Umbraco.Sys.ServerVariables.umbracoSettings.umbracoPath
-                    + '/LegacyFeatureConverter/ConversionHub';
+                    + '/Umbraco.Community.LegacyFeatureConverter/ConversionHub';
 
                 hubConnection = new signalR.HubConnectionBuilder()
                     .withUrl(hubUrl)

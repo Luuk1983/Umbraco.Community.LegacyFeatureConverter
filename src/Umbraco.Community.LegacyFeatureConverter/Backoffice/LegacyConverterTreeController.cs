@@ -15,7 +15,7 @@ namespace Umbraco.Community.LegacyFeatureConverter.Backoffice;
 /// Tree controller for the Legacy Feature Converter section in the Umbraco backoffice.
 /// Adds a "Legacy converters" group under Settings with a "Property editors" menu item.
 /// </summary>
-[PluginController("LegacyFeatureConverter")]
+[PluginController("Umbraco.Community.LegacyFeatureConverter")]
 [Authorize(Policy = AuthorizationPolicies.SectionAccessSettings)]
 [Tree(
     Constants.Applications.Settings,

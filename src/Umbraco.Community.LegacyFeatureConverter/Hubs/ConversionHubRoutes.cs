@@ -44,6 +44,6 @@ public class ConversionHubRoutes : IAreaRoutes
             return;
 
         endpoints.MapHub<ConversionHub>(
-            $"/{_umbracoPathSegment}/LegacyFeatureConverter/ConversionHub");
+            $"/{_umbracoPathSegment}/Umbraco.Community.LegacyFeatureConverter/ConversionHub");
     }
 }

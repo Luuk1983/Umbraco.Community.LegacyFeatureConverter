@@ -12,7 +12,7 @@
      */
     function LegacyConverterDetailsController($scope, $http, notificationsService) {
         var vm = this;
-        var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
+        var apiBase = '/umbraco/backoffice/Umbraco.Community.LegacyFeatureConverter/LegacyConverterApi';
 
         // State
         vm.loading = true;
