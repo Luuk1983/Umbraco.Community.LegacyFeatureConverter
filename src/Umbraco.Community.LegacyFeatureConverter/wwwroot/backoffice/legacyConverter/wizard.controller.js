@@ -15,7 +15,7 @@
      */
     function LegacyConverterWizardController($scope, $http, notificationsService) {
         var vm = this;
-        var apiBase = '/umbraco/backoffice/Umbraco.Community.LegacyFeatureConverter/LegacyConverterApi';
+        var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
 
         // State
         vm.currentStep = 0;

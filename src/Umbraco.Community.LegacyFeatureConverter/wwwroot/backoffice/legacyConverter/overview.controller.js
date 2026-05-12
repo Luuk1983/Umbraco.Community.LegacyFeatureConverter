@@ -15,7 +15,7 @@
      */
     function LegacyConverterOverviewController($scope, $http, $interval, notificationsService, editorService, assetsService) {
         var vm = this;
-        var apiBase = '/umbraco/backoffice/Umbraco.Community.LegacyFeatureConverter/LegacyConverterApi';
+        var apiBase = '/umbraco/backoffice/LegacyFeatureConverter/LegacyConverterApi';
         var pollInterval;
         var hubConnection;
 
@@ -75,7 +75,7 @@
 
             assetsService.loadJs(signalRScript).then(function () {
                 var hubUrl = Umbraco.Sys.ServerVariables.umbracoSettings.umbracoPath
-                    + '/Umbraco.Community.LegacyFeatureConverter/ConversionHub';
+                    + '/LegacyFeatureConverter/ConversionHub';
 
                 hubConnection = new signalR.HubConnectionBuilder()
                     .withUrl(hubUrl)
@@ -147,7 +147,7 @@
             editorService.open({
                 title: 'Start a new conversion',
                 size: 'medium',
-                view: '/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/wizard.html',
+                view: '/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/wizard.html',
                 converters: vm.converters,
                 submit: function (model) {
                     editorService.close();
@@ -164,7 +164,7 @@
             editorService.open({
                 title: 'Conversion details',
                 size: 'large',
-                view: '/App_Plugins/Umbraco.Community.LegacyFeatureConverter/backoffice/legacyConverter/details.html',
+                view: '/App_Plugins/LegacyFeatureConverter/backoffice/legacyConverter/details.html',
                 conversionId: conversionId,
                 close: function () {
                     editorService.close();

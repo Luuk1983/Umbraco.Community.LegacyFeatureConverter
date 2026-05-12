@@ -8,7 +8,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RootNamespace>Umbraco.Community.LegacyFeatureConverter</RootNamespace>
     <AssemblyName>Umbraco.Community.LegacyFeatureConverter</AssemblyName>
-    <StaticWebAssetBasePath>App_Plugins/Umbraco.Community.LegacyFeatureConverter</StaticWebAssetBasePath>
+    <StaticWebAssetBasePath>App_Plugins/LegacyFeatureConverter</StaticWebAssetBasePath>
 
     <!-- NuGet package metadata -->
     <PackageId>Umbraco.Community.LegacyFeatureConverter</PackageId>
