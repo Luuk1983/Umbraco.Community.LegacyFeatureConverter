@@ -59,8 +59,8 @@
   <ItemGroup>
     <PackageReference Include="MinVer" Version="5.0.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
-    <PackageReference Include="Umbraco.Cms.Web.Website" Version="13.13.1" />
-    <PackageReference Include="Umbraco.Cms.Web.BackOffice" Version="13.13.1" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="[13.13.1, 14.0.0)" />
+    <PackageReference Include="Umbraco.Cms.Web.BackOffice" Version="[13.13.1, 14.0.0)" />
   </ItemGroup>
 
   <!-- Include the supporting library DLLs (Abstractions/Data/Infrastructure/Converters) in lib/net8.0/ -->
