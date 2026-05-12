@@ -24,16 +24,16 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore Umbraco.Community.LegacyFeatureConverter.slnx
+        run: dotnet restore src/Umbraco.Community.LegacyFeatureConverter.slnx
 
       - name: Build
-        run: dotnet build Umbraco.Community.LegacyFeatureConverter.slnx --configuration Release --no-restore
+        run: dotnet build src/Umbraco.Community.LegacyFeatureConverter.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Umbraco.Community.LegacyFeatureConverter.slnx --configuration Release --no-build --verbosity normal
+        run: dotnet test src/Umbraco.Community.LegacyFeatureConverter.slnx --configuration Release --no-build --verbosity normal
 
       - name: Pack
-        run: dotnet pack Umbraco.Community.LegacyFeatureConverter/Umbraco.Community.LegacyFeatureConverter.csproj --configuration Release --output ./artifacts
+        run: dotnet pack src/Umbraco.Community.LegacyFeatureConverter/Umbraco.Community.LegacyFeatureConverter.csproj --configuration Release --output ./artifacts
 
       - name: Login to NuGet (trusted publishing)
         id: nuget-login

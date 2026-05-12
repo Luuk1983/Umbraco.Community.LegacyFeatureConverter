@@ -1,0 +1,5 @@
+{
+    "id": "Umbraco.Community.LegacyFeatureConverter",
+    "name": "Umbraco.Community.LegacyFeatureConverter",
+    "allowPackageTelemetry": true
+}

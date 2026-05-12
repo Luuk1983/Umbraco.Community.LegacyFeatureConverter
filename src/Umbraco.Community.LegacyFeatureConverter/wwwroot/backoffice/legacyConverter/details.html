@@ -1,0 +1,129 @@
+<div ng-controller="legacyConverter.details.controller as vm">
+    <umb-editor-view>
+        <umb-editor-header name="vm.title"
+                           name-locked="true"
+                           hide-icon="true"
+                           hide-alias="true"
+                           hide-description="true">
+        </umb-editor-header>
+
+        <umb-editor-container>
+            <umb-load-indicator ng-if="vm.loading"></umb-load-indicator>
+
+            <div ng-if="!vm.loading && vm.history">
+                <!-- Summary -->
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_summary"></umb-box-header>
+                    <umb-box-content>
+                        <div class="lfc-details-grid">
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_converter">Converter</localize></strong>
+                                <span>{{vm.history.converterType}}</span>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_status">Status</localize></strong>
+                                <uui-tag ng-class="vm.getStatusClass(vm.history.status)" look="secondary">
+                                    {{vm.history.status}}
+                                </uui-tag>
+                                <uui-tag ng-if="vm.history.isTestRun" color="warning" look="secondary">
+                                    <localize key="legacyConverter_testRun">Test run</localize>
+                                </uui-tag>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_startedAt">Started</localize></strong>
+                                <span>{{vm.history.startedAt | date:'medium'}}</span>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_completedAt">Completed</localize></strong>
+                                <span>{{vm.history.completedAt | date:'medium'}}</span>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_documentTypes">Document types</localize></strong>
+                                <span>{{vm.history.totalDocumentTypes}}</span>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_dataTypes">Data types</localize></strong>
+                                <span>{{vm.history.totalDataTypes}}</span>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_contentNodes">Content nodes</localize></strong>
+                                <span>{{vm.history.totalContentNodes}}</span>
+                            </div>
+                            <div class="lfc-details-item">
+                                <strong><localize key="legacyConverter_results">Results</localize></strong>
+                                <span>
+                                    <span class="text-success">{{vm.history.successCount}} success</span>,
+                                    <span class="text-danger">{{vm.history.failureCount}} failed</span>,
+                                    <span class="text-muted">{{vm.history.skippedCount}} skipped</span>
+                                </span>
+                            </div>
+                        </div>
+                    </umb-box-content>
+                </umb-box>
+
+                <!-- Log entries -->
+                <umb-box>
+                    <umb-box-header title-key="legacyConverter_logEntries">
+                    </umb-box-header>
+                    <umb-box-content>
+                        <umb-empty-state ng-if="vm.logs.length === 0" size="small">
+                            <localize key="legacyConverter_noLogEntries">No log entries found.</localize>
+                        </umb-empty-state>
+
+                        <uui-table ng-if="vm.logs.length > 0">
+                            <uui-table-column style="width: 100px;"></uui-table-column>
+                            <uui-table-column style="width: 140px;"></uui-table-column>
+                            <uui-table-column style="width: 120px;"></uui-table-column>
+                            <uui-table-column></uui-table-column>
+                            <uui-table-head>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_level">Level</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_timestamp">Time</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_itemType">Type</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_message">Message</localize>
+                                </uui-table-head-cell>
+                            </uui-table-head>
+                            <uui-table-row ng-repeat="log in vm.logs"
+                                           ng-class="{'lfc-log--error': log.level === 'Error', 'lfc-log--warning': log.level === 'Warning'}">
+                                <uui-table-cell>
+                                    <uui-tag ng-class="vm.getLogLevelClass(log.level)" look="secondary">
+                                        {{log.level}}
+                                    </uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell>{{log.timestamp | date:'HH:mm:ss'}}</uui-table-cell>
+                                <uui-table-cell>{{log.itemType}}</uui-table-cell>
+                                <uui-table-cell>
+                                    {{log.message}}
+                                    <small ng-if="log.itemName" class="db text-muted">
+                                        {{log.itemName}}
+                                    </small>
+                                </uui-table-cell>
+                            </uui-table-row>
+                        </uui-table>
+                    </umb-box-content>
+                </umb-box>
+            </div>
+
+            <!-- Not found -->
+            <umb-empty-state ng-if="!vm.loading && !vm.history" size="large">
+                <localize key="legacyConverter_conversionNotFound">Conversion not found.</localize>
+            </umb-empty-state>
+        </umb-editor-container>
+
+        <umb-editor-footer>
+            <umb-editor-footer-content-right>
+                <umb-button type="button"
+                            button-style="link"
+                            label-key="general_close"
+                            action="vm.close()">
+                </umb-button>
+            </umb-editor-footer-content-right>
+        </umb-editor-footer>
+    </umb-editor-view>
+</div>

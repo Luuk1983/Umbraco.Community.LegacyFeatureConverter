@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<language alias="nl" intName="Dutch" localName="Nederlands" lcid="" culture="nl-NL">
+  <creator>
+    <name>Umbraco.Community.LegacyFeatureConverter</name>
+    <link>https://github.com/LuukPeters/UmbracoLegacyFeatureConverter</link>
+  </creator>
+  <area alias="treeHeaders">
+    <key alias="legacyConvertersGroup">Converteren</key>
+    <key alias="legacyConverter">Verouderde feature converters</key>
+  </area>
+  <area alias="legacyConverter">
+    <key alias="treeTitle">Verouderde feature converters</key>
+    <key alias="availableConverters">Beschikbare converters</key>
+    <key alias="noConvertersFound">Geen converters gevonden.</key>
+    <key alias="conversionQueue">Conversiewachtrij</key>
+    <key alias="conversionHistory">Conversiegeschiedenis</key>
+    <key alias="noHistoryFound">Er zijn nog geen conversies uitgevoerd.</key>
+    <key alias="converter">Converter</key>
+    <key alias="status">Status</key>
+    <key alias="queuedAt">In wachtrij op</key>
+    <key alias="startedAt">Gestart</key>
+    <key alias="completedAt">Voltooid</key>
+    <key alias="results">Resultaten</key>
+    <key alias="testRun">Testrun</key>
+    <key alias="documentTypes">documenttypen</key>
+    <key alias="dataTypes">Datatypen</key>
+    <key alias="contentNodes">Contentpagina's</key>
+    <key alias="properties">eigenschappen</key>
+    <key alias="welcomeTitle">Welkom</key>
+    <key alias="welcomeDescription">Deze wizard helpt u bij het converteren van verouderde property editors naar hun moderne equivalent.</key>
+    <key alias="welcomeAffectedCount">Betrokken documenttypen:</key>
+    <key alias="selectApproach">Kies conversiemethode</key>
+    <key alias="selectApproachDescription">Kies hoe de converter bepaalt welke documenttypen en content bijgewerkt moeten worden.</key>
+    <key alias="approachDocumentType">Documenttype</key>
+    <key alias="approachDocumentTypeDescription">Scant documenttypen op eigenschappen met de verouderde editor. Werkt alle overeenkomende documenttypen, datatypen en bijbehorende content bij. Documenttypen zonder content worden ook bijgewerkt.</key>
+    <key alias="approachDocumentTypePro1">Snel — geen scan van contentwaarden vereist.</key>
+    <key alias="approachDocumentTypeCon1">Vangt geen documenttypen die al via uSync zijn bijgewerkt maar nog ongeconverteerde content hebben.</key>
+    <key alias="approachThorough">Grondig</key>
+    <key alias="approachThoroughDescription">Alles wat de documenttype-methode doet, plus een directe scan van contentwaarden om ongeconverteerde data te vinden. Vangt het uSync-scenario en herstelt gedeeltelijk mislukte migraties.</key>
+    <key alias="approachThoroughPro1">Vindt ongeconverteerde content ook als het documenttype-schema al is bijgewerkt.</key>
+    <key alias="approachThoroughPro2">Veilig uit te voeren na een gedeeltelijke of mislukte migratie om zeker te weten dat niets is gemist.</key>
+    <key alias="approachThoroughCon1">Langzamer: scant naast het schema ook de daadwerkelijke contentwaarden.</key>
+    <key alias="approachFastest">Snelst</key>
+    <key alias="approachSlower">Langzamer</key>
+    <key alias="impactOverview">Impact overzicht</key>
+    <key alias="computingPlan">Uw content en documenttypen worden geanalyseerd…</key>
+    <key alias="noImpact">Er is niets gevonden om te converteren voor de gekozen methode.</key>
+    <key alias="documentType">Documenttype</key>
+    <key alias="updateType">Updatetype</key>
+    <key alias="updateFull">Schema + content</key>
+    <key alias="updateContentOnly">Alleen content</key>
+    <key alias="approach">Methode</key>
+    <key alias="selectDocumentTypes">Selecteer documenttypen</key>
+    <key alias="selectDocTypesDescription">Selecteer de documenttypen die u wilt converteren. Niet-geselecteerde typen worden overgeslagen.</key>
+    <key alias="selectAll">Alles selecteren</key>
+    <key alias="selectedDocTypes">Geselecteerde documenttypen</key>
+    <key alias="noDocumentTypesFound">Er zijn geen documenttypen met overeenkomende eigenschappen gevonden.</key>
+    <key alias="runMode">Uitvoermodus</key>
+    <key alias="modeTestRun">Alleen testrun</key>
+    <key alias="modeTestRunDescription">Voert de conversie uit zonder wijzigingen op te slaan. Gebruik dit om een voorbeeld te zien van wat er zou gebeuren.</key>
+    <key alias="modeConversionRun">Conversie uitvoeren</key>
+    <key alias="modeConversionRunDescription">Voert de daadwerkelijke conversie uit en slaat alle wijzigingen op. Documenttypen, datatypen en content worden bijgewerkt.</key>
+    <key alias="conversionSettings">Conversie-instellingen</key>
+    <key alias="stopOnError">Stoppen bij fout</key>
+    <key alias="stopOnErrorDescription">Indien ingeschakeld stopt de conversie direct bij een fout. Indien uitgeschakeld worden fouten gelogd en gaat de conversie door.</key>
+    <key alias="runTestFirst">Eerst testen</key>
+    <key alias="runTestFirstDescription">Voert eerst een testconversie uit zonder wijzigingen op te slaan. Als de test slaagt, wordt de daadwerkelijke conversie automatisch gestart. Dit duurt langer maar helpt fouten te ontdekken voordat uw data wordt gewijzigd.</key>
+    <key alias="testRunOnly">Alleen testrun (dry run)</key>
+    <key alias="testRunOnlyDescription">Voer alleen een testconversie uit zonder wijzigingen op te slaan. Gebruik dit om een voorbeeld te zien van wat er zou gebeuren voordat u de daadwerkelijke conversie start.</key>
+    <key alias="publishAfterConversion">Publiceren na conversie</key>
+    <key alias="publishAfterConversionDescription">Indien ingeschakeld worden omgezette content-nodes opgeslagen én gepubliceerd. Indien uitgeschakeld (standaard) wordt content als concept opgeslagen en moet handmatig worden gepubliceerd.</key>
+    <key alias="summary">Samenvatting</key>
+    <key alias="queueConversion">Conversie in wachtrij plaatsen</key>
+    <key alias="logEntries">Logregels</key>
+    <key alias="noLogEntries">Geen logregels gevonden.</key>
+    <key alias="level">Niveau</key>
+    <key alias="timestamp">Tijd</key>
+    <key alias="itemType">Type</key>
+    <key alias="message">Bericht</key>
+    <key alias="backToOverview">Terug naar overzicht</key>
+    <key alias="conversionNotFound">Conversie niet gevonden.</key>
+    <key alias="queueEmpty">De wachtrij is momenteel leeg.</key>
+    <key alias="startNewConversion">Start een nieuwe conversie</key>
+    <key alias="selectConverter">Kies een converter</key>
+    <key alias="selectConverterDescription">Kies een converter om het conversieproces te starten.</key>
+  </area>
+</language>

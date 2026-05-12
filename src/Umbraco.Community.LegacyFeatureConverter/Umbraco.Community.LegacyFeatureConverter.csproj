@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>Umbraco.Community.LegacyFeatureConverter</RootNamespace>
+    <AssemblyName>Umbraco.Community.LegacyFeatureConverter</AssemblyName>
+    <StaticWebAssetBasePath>App_Plugins/Umbraco.Community.LegacyFeatureConverter</StaticWebAssetBasePath>
+
+    <!-- NuGet package metadata -->
+    <PackageId>Umbraco.Community.LegacyFeatureConverter</PackageId>
+    <Title>Legacy Feature Converter for Umbraco</Title>
+    <Authors>Luuk Peters</Authors>
+    <Copyright>Copyright (c) Luuk Peters</Copyright>
+    <Description>Converts legacy Grid and Macro content in Umbraco 13 to modern BlockGrid/BlockList structures, with a backoffice wizard, queued background conversion, progress reporting, and a pluggable property-converter pipeline.</Description>
+    <PackageTags>umbraco;umbraco-marketplace;grid;blockgrid;blocklist;macro;migration;legacy</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>package_logo_128x128.png</PackageIcon>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Luuk1983/Umbraco.Community.LegacyFeatureConverter</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Luuk1983/Umbraco.Community.LegacyFeatureConverter</PackageProjectUrl>
+
+    <!-- MinVer: version is derived from git tags (vX.Y.Z) -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerAutoIncrement>patch</MinVerAutoIncrement>
+    <MinVerMinimumMajorMinor>0.1</MinVerMinimumMajorMinor>
+
+    <!-- Symbols package + SourceLink -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DeterministicSourcePaths Condition="'$(GITHUB_ACTIONS)' == 'true'">true</DeterministicSourcePaths>
+
+    <!-- Bundle project-referenced DLLs into this package instead of declaring them as NuGet dependencies -->
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="package_logo_128x128.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Umbraco.Community.LegacyFeatureConverter.Abstractions\Umbraco.Community.LegacyFeatureConverter.Abstractions.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Umbraco.Community.LegacyFeatureConverter.Data\Umbraco.Community.LegacyFeatureConverter.Data.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Umbraco.Community.LegacyFeatureConverter.Infrastructure\Umbraco.Community.LegacyFeatureConverter.Infrastructure.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Umbraco.Community.LegacyFeatureConverter.Converters\Umbraco.Community.LegacyFeatureConverter.Converters.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="5.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="13.13.1" />
+    <PackageReference Include="Umbraco.Cms.Web.BackOffice" Version="13.13.1" />
+  </ItemGroup>
+
+  <!-- Include the supporting library DLLs (Abstractions/Data/Infrastructure/Converters) in lib/net8.0/ -->
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+        Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)' == 'ProjectReference'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

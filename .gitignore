@@ -3,6 +3,13 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Claude Code local state
+.claude/
+
+# Local pack output
+artifacts/
+
+
 # User-specific files
 *.rsuser
 *.suo
