@@ -1,5 +1,4 @@
-using LP.Umbraco.LegacyFeatureConverter.Converters;
-using LP.Umbraco.LegacyFeatureConverter.Models;
+using System.Globalization;
 using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -26,6 +25,11 @@ namespace LP.Umbraco.LegacyFeatureConverter.Converters.NestedContent;
 /// </summary>
 public class NestedContentConverter : BasePropertyConverter
 {
+    // NC stores property values as raw strings. Disable Newtonsoft's auto date parsing so ISO-formatted
+    // date strings stay as JTokenType.String — otherwise they become DateTime tokens that re-serialize
+    // with surrounding quotes, producing double-quoted dates in the BlockList output.
+    private static readonly JsonSerializerSettings NoDateParsing = new() { DateParseHandling = DateParseHandling.None };
+
     private readonly IDataValueEditorFactory _dataValueEditorFactory;
     private readonly PropertyEditorCollection _propertyEditorCollection;
     private readonly IConfigurationEditorJsonSerializer _configurationEditorJsonSerializer;
@@ -183,7 +187,7 @@ public class NestedContentConverter : BasePropertyConverter
 
         try
         {
-            var jArray = JsonConvert.DeserializeObject<JArray>(valueString);
+            var jArray = JsonConvert.DeserializeObject<JArray>(valueString, NoDateParsing);
             if (jArray == null || jArray.Count == 0)
             {
                 _logger.LogDebug("No nested content items found for {PropertyAlias}", property.Alias);
@@ -239,9 +243,16 @@ public class NestedContentConverter : BasePropertyConverter
                     continue;
                 }
 
-                dict[prop.Name] = prop.Value.Type == JTokenType.String
-                    ? prop.Value.Value<string>() ?? string.Empty
-                    : prop.Value.ToString(Formatting.None);
+                // NC stores property values as raw strings. String tokens unwrap to their raw value.
+                // Date tokens get the ISO 8601 string (NOT ToString(Formatting.None), which would
+                // wrap them in quotes — the cause of the double-quoted-date bug). All other tokens
+                // (bool, numeric, object, array) keep the canonical JSON form.
+                dict[prop.Name] = prop.Value.Type switch
+                {
+                    JTokenType.String => prop.Value.Value<string>() ?? string.Empty,
+                    JTokenType.Date => prop.Value.Value<DateTime>().ToString("o", CultureInfo.InvariantCulture),
+                    _ => prop.Value.ToString(Formatting.None)
+                };
             }
 
             return dict;
@@ -339,7 +350,7 @@ public class NestedContentConverter : BasePropertyConverter
         JArray? jArray;
         try
         {
-            jArray = JsonConvert.DeserializeObject<JArray>(value);
+            jArray = JsonConvert.DeserializeObject<JArray>(value, NoDateParsing);
         }
         catch
         {

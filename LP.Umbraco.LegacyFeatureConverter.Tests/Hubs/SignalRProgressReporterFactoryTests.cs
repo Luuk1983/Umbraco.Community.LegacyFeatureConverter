@@ -1,6 +1,5 @@
 using LP.Umbraco.LegacyFeatureConverter.Hubs;
 using LP.Umbraco.LegacyFeatureConverter.Models;
-using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;

@@ -178,7 +178,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
                     .Select(dt => new DocumentTypeConversionInfo
                     {
                         Key = dt.Key,
-                        Name = dt.Name,
+                        Name = dt.Name ?? dt.Alias,
                         Alias = dt.Alias
                     }));
 
@@ -359,14 +359,14 @@ public abstract class BasePropertyConverter : IPropertyConverter
                         continue;
                     }
 
-                    conversionInfo.Name = sourceDataType.Name;
+                    conversionInfo.Name = sourceDataType.Name ?? string.Empty;
                     conversionInfo.Key = sourceDataType.Key;
 
                     ReportProgress(progress, result.ConversionId, "Creating data types",
-                        sourceDataType.Name, processedDataTypeIds.Count, processedDataTypeIds.Count);
+                        sourceDataType.Name ?? string.Empty, processedDataTypeIds.Count, processedDataTypeIds.Count);
 
                     var targetDataType = await CreateTargetDataTypeAsync(sourceDataType);
-                    if (targetDataType != null)
+                    if (targetDataType != null && targetDataType.Name != null)
                     {
                         var existing = _dataTypeService.GetDataType(targetDataType.Name);
                         if (existing == null)
@@ -445,7 +445,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
             var dtInfo = result.DocumentTypes.First(x => x.Key == docType.Key);
 
             ReportProgress(progress, result.ConversionId, "Updating document types",
-                docType.Name, processedCount, documentTypes.Count);
+                docType.Name ?? docType.Alias, processedCount, documentTypes.Count);
 
             try
             {
@@ -602,6 +602,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
     /// </summary>
     /// <param name="result">The conversion result to populate.</param>
     /// <param name="documentTypes">The document types whose content should be converted.</param>
+    /// <param name="contentOnlyDocTypes">Doc types already on the target editor whose content values still need conversion. Pass <see langword="null"/> to fall back to a full Phase 4b scan.</param>
     /// <param name="propertyAliasesToConvert">Pre-tracked mapping of doc type ID to property aliases.</param>
     /// <param name="options">The conversion options (for StopOnError and IsTestRun).</param>
     /// <param name="progress">Optional progress reporter.</param>
@@ -687,12 +688,13 @@ public abstract class BasePropertyConverter : IPropertyConverter
             }
         }
 
-        // Pre-compute total content count across all doc types for cumulative progress
+        // Pre-compute total content count across all doc types for cumulative progress.
+        // Count runs a single SELECT COUNT(*) — no records loaded, unlike GetPagedOfType
+        // which requires pageSize >= 1 and would fetch a throwaway record.
         var totalContentCount = 0;
         foreach (var (docType, _) in docTypesToProcess)
         {
-            _contentService.GetPagedOfType(docType.Id, 0, 0, out long count, null!);
-            totalContentCount += (int)count;
+            totalContentCount += _contentService.Count(docType.Alias);
         }
 
         // Process all doc types with cumulative progress tracking
@@ -863,7 +865,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
                 .Concat(docType.CompositionPropertyTypes)
                 .Count(pt => SourcePropertyEditorAliases.Contains(pt.PropertyEditorAlias));
 
-            _contentService.GetPagedOfType(docType.Id, 0, 1, out long contentCount, null!);
+            var contentCount = _contentService.Count(docType.Alias);
 
             plan.DocumentTypes.Add(new ConversionPlanDocType
             {
@@ -871,7 +873,7 @@ public abstract class BasePropertyConverter : IPropertyConverter
                 Name = docType.Name ?? docType.Alias,
                 Alias = docType.Alias,
                 Icon = docType.Icon,
-                ContentNodeCount = (int)contentCount,
+                ContentNodeCount = contentCount,
                 PropertyCount = propertyCount,
                 NeedsSchemaUpdate = true,
                 NeedsContentUpdate = true

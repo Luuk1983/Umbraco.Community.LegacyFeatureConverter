@@ -4,7 +4,6 @@ using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Umbraco.Cms.Core.Models;
-using Umbraco.Cms.Core.Models.ContentEditing;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Infrastructure.Scoping;
 
@@ -68,6 +67,21 @@ internal class TestableConverter : BasePropertyConverter
         CancellationToken cancellationToken = default)
     {
         return ConvertContentForDocTypeAsync(result, docType, aliasesToConvert, options, null, 0, 0, cancellationToken);
+    }
+
+    /// <summary>
+    /// Exposes the protected ConvertContentDataAsync for testing.
+    /// </summary>
+    public Task TestConvertContentDataAsync(
+        ConversionResult result,
+        List<IContentType> documentTypes,
+        List<IContentType>? contentOnlyDocTypes,
+        Dictionary<int, HashSet<string>> propertyAliasesToConvert,
+        ConversionOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        return ConvertContentDataAsync(result, documentTypes, contentOnlyDocTypes,
+            propertyAliasesToConvert, options, null, cancellationToken);
     }
 }
 
@@ -437,7 +451,7 @@ public class BasePropertyConverterTests
         // Invariant value must NOT be touched
         propertyMock.Verify(p => p.SetValue(It.IsAny<object?>(), (string?)null, It.IsAny<string?>()), Times.Never);
         // The content node was counted as successful
-        Assert.AreEqual(1, result.ContentNodes.Count);
+        Assert.HasCount(1, result.ContentNodes);
         Assert.IsTrue(result.ContentNodes[0].Success);
         Assert.AreEqual(2, result.ContentNodes[0].PropertiesConverted);
     }
@@ -673,6 +687,61 @@ public class BasePropertyConverterTests
             Times.Once);
 
         Assert.AreEqual(2, result.ContentNodes[0].PropertiesConverted);
+    }
+
+    // ===== Phase 4 count-loop regression =====
+
+    [TestMethod]
+    public async Task ConvertContentDataAsync_CountLoop_UsesScalarCountQuery()
+    {
+        // Regression: ConvertContentDataAsync used to call GetPagedOfType with pageSize=0
+        // when pre-computing the total content count, which Umbraco rejects with
+        // ArgumentOutOfRangeException. The fix uses IContentService.Count, which runs
+        // a SELECT COUNT(*) — no records fetched.
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (_, _) => Task.FromResult<object?>(null);
+
+        var ptMock = new Mock<IPropertyType>();
+        ptMock.Setup(pt => pt.Alias).Returns("myProp");
+        ptMock.Setup(pt => pt.PropertyEditorAlias).Returns("Umbraco.NewTestEditor"); // already on TARGET
+        ptMock.Setup(pt => pt.DataTypeId).Returns(99);
+
+        var docTypeMock = new Mock<IContentType>();
+        docTypeMock.Setup(dt => dt.Id).Returns(1);
+        docTypeMock.Setup(dt => dt.Key).Returns(Guid.NewGuid());
+        docTypeMock.Setup(dt => dt.Name).Returns("DocType 1");
+        docTypeMock.Setup(dt => dt.Alias).Returns("docType1");
+        docTypeMock.Setup(dt => dt.PropertyTypes).Returns(new[] { ptMock.Object });
+        docTypeMock.Setup(dt => dt.CompositionPropertyTypes).Returns(Enumerable.Empty<IPropertyType>());
+
+        _contentServiceMock.Setup(x => x.Count("docType1")).Returns(0);
+
+        long fetchTotal = 0;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out fetchTotal, null!))
+            .Returns(Enumerable.Empty<IContent>());
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        var options = new ConversionOptions { IsTestRun = true };
+
+        // Act: simulate the contentOnly path (schema already migrated, content not)
+        await converter.TestConvertContentDataAsync(
+            result,
+            documentTypes: new List<IContentType>(),
+            contentOnlyDocTypes: new List<IContentType> { docTypeMock.Object },
+            propertyAliasesToConvert: new Dictionary<int, HashSet<string>>(),
+            options);
+
+        // Assert: scalar Count was used (no records fetched for the count phase)
+        _contentServiceMock.Verify(x => x.Count("docType1"), Times.Once);
+
+        // GetPagedOfType must NOT be used as a count-only query (no pageSize <= 1 calls)
+        _contentServiceMock.Verify(
+            x => x.GetPagedOfType(It.IsAny<int>(), It.IsAny<long>(), It.Is<int>(p => p <= 1),
+                out It.Ref<long>.IsAny,
+                It.IsAny<global::Umbraco.Cms.Core.Persistence.Querying.IQuery<IContent>>()),
+            Times.Never,
+            "Count loop should use IContentService.Count, not a 1-record GetPagedOfType query");
     }
 
     [TestMethod]

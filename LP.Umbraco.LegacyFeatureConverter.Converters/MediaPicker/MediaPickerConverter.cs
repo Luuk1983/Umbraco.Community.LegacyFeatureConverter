@@ -1,5 +1,3 @@
-using LP.Umbraco.LegacyFeatureConverter.Converters;
-using LP.Umbraco.LegacyFeatureConverter.Models;
 using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;

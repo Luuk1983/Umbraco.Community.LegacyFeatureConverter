@@ -1,5 +1,4 @@
 using LP.Umbraco.LegacyFeatureConverter.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace LP.Umbraco.LegacyFeatureConverter.Tests.Data;
 

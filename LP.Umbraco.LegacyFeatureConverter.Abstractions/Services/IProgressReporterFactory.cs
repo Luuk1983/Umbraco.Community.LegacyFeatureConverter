@@ -4,7 +4,7 @@ namespace LP.Umbraco.LegacyFeatureConverter.Services;
 
 /// <summary>
 /// Factory for creating progress reporters that broadcast conversion progress via SignalR.
-/// Decouples the Infrastructure layer (which hosts <see cref="ConversionBackgroundTask"/>)
+/// Decouples the Infrastructure layer (which hosts the conversion background task)
 /// from the SignalR hub implementation in the main plugin project.
 /// </summary>
 public interface IProgressReporterFactory

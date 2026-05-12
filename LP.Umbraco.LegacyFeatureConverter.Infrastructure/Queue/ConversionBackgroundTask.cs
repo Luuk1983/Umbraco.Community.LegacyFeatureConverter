@@ -178,6 +178,7 @@ public class ConversionBackgroundTask : BackgroundService
     /// <param name="options">The original conversion options.</param>
     /// <param name="queueItemId">The queue item ID for status updates.</param>
     /// <param name="queueService">The queue service for status updates.</param>
+    /// <param name="progressFactory">Factory for creating SignalR progress reporters.</param>
     /// <param name="cancellationToken">Token to support cancellation.</param>
     /// <returns>True if the test run completed without failures, false otherwise.</returns>
     private async Task<bool> RunTestConversionAsync(
@@ -236,6 +237,7 @@ public class ConversionBackgroundTask : BackgroundService
     /// <param name="options">The conversion options.</param>
     /// <param name="queueItemId">The queue item ID for status updates.</param>
     /// <param name="queueService">The queue service for status updates.</param>
+    /// <param name="progressFactory">Factory for creating SignalR progress reporters.</param>
     /// <param name="cancellationToken">Token to support cancellation.</param>
     private async Task ExecuteConversionAsync(
         Converters.IPropertyConverter converter,

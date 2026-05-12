@@ -1,9 +1,7 @@
 using LP.Umbraco.LegacyFeatureConverter.Converters.NestedContent;
-using LP.Umbraco.LegacyFeatureConverter.Models;
 using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.PropertyEditors;
@@ -325,6 +323,36 @@ public class NestedContentConverterTests
         // The images property should be copied as-is (not treated as nested NC)
         var images = contentData![0]["images"]!.ToString();
         Assert.IsTrue(images.Contains("mediaKey"));
+    }
+
+    [TestMethod]
+    public async Task ConvertPropertyValue_DateValues_StoredAsUnquotedString()
+    {
+        // Regression: Newtonsoft's default DateParseHandling.DateTime auto-converts ISO date
+        // strings into DateTime JTokens. The previous code then re-serialized them with
+        // ToString(Formatting.None), producing a JSON-quoted string. When that string was
+        // serialized again into the BlockList JSON, the surrounding quotes were escaped,
+        // yielding "\"2025-01-15T00:00:00\"" — a double-quoted date in the raw JSON output.
+        SetupContentType("dateBlock", Guid.NewGuid());
+
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("blocks");
+
+        var ncJson = @"[{""ncContentTypeAlias"":""dateBlock"",""publishDate"":""2025-01-15T00:00:00""}]";
+
+        var result = await InvokeConvertPropertyValue(ncJson, property.Object);
+
+        Assert.IsNotNull(result);
+        var rawBlockListJson = result.ToString()!;
+
+        // The raw output JSON must contain the date as a normal string property:
+        //   "publishDate":"2025-01-15T00:00:00"
+        // and must NOT contain the double-quoted form:
+        //   "publishDate":"\"2025-01-15T00:00:00\""
+        StringAssert.Contains(rawBlockListJson, @"""publishDate"":""2025-01-15T00:00:00""",
+            $"Date should be a plain string in the BlockList JSON. Got: {rawBlockListJson}");
+        Assert.IsFalse(rawBlockListJson.Contains(@"""publishDate"":""\"""),
+            $"Date must not be double-quoted in the BlockList JSON. Got: {rawBlockListJson}");
     }
 
     [TestMethod]

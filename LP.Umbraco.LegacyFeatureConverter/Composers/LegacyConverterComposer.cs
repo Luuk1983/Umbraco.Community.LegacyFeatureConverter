@@ -52,11 +52,9 @@ public class LegacyConverterComposer : IComposer
         builder.Services.AddSingleton<ConversionHubRoutes>();
         builder.Services.Configure<UmbracoPipelineOptions>(options =>
         {
-            options.AddFilter(new UmbracoPipelineFilter(
-                "LegacyFeatureConverter",
-                applicationBuilder => { },
-                applicationBuilder => { },
-                applicationBuilder =>
+            options.AddFilter(new UmbracoPipelineFilter("LegacyFeatureConverter")
+            {
+                Endpoints = applicationBuilder =>
                 {
                     applicationBuilder.UseEndpoints(endpoints =>
                     {
@@ -65,7 +63,7 @@ public class LegacyConverterComposer : IComposer
                         hubRoutes.CreateRoutes(endpoints);
                     });
                 }
-            ));
+            });
         });
 
         // === Database migration on startup ===

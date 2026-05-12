@@ -1,7 +1,5 @@
 using LP.Umbraco.LegacyFeatureConverter.Converters;
 using LP.Umbraco.LegacyFeatureConverter.Infrastructure.Services;
-using LP.Umbraco.LegacyFeatureConverter.Models;
-using LP.Umbraco.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Umbraco.Cms.Core.Models;
