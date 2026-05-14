@@ -99,7 +99,7 @@ public class ConversionBackgroundTaskTests
 
         // Should have attempted dequeue but not called any converter
         _converterServiceMock.Verify(
-            c => c.GetConverterByName(It.IsAny<string>()),
+            c => c.GetLegacyConverterByName(It.IsAny<string>()),
             Times.Never);
     }
 
@@ -139,7 +139,7 @@ public class ConversionBackgroundTaskTests
                 Status = ConversionStatus.Completed
             });
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -164,6 +164,63 @@ public class ConversionBackgroundTaskTests
     }
 
     [TestMethod]
+    public async Task WhenMacroConverterDequeued_DispatchesToMacroConverter()
+    {
+        // Mirror the property-converter happy-path test for the macro family.
+        var options = new ConversionOptions
+        {
+            ConverterType = "Macro to Rich Text Block",
+            SelectedMacroKeys = new[] { Guid.NewGuid() },
+            GenerateStubPartialViews = false
+        };
+        var queueItem = new QueueItem
+        {
+            Id = Guid.NewGuid(),
+            SerializedOptions = JsonSerializer.Serialize(options),
+            Status = ConversionStatus.Running
+        };
+
+        var callCount = 0;
+        _queueServiceMock.Setup(q => q.DequeueAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => ++callCount == 1 ? queueItem : null);
+
+        var macroMock = new Mock<IMacroConverter>();
+        macroMock.Setup(c => c.ConverterName).Returns("Macro to Rich Text Block");
+        macroMock.Setup(c => c.ExecuteConversionAsync(
+                It.IsAny<ConversionOptions>(),
+                It.IsAny<IProgress<ConversionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ConversionResult
+            {
+                ConversionId = Guid.NewGuid(),
+                Status = ConversionStatus.Completed
+            });
+
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Macro to Rich Text Block"))
+            .Returns(macroMock.Object);
+
+        var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await task.StartAsync(cts.Token);
+        await Task.Delay(500);
+        await task.StopAsync(CancellationToken.None);
+
+        macroMock.Verify(c => c.ExecuteConversionAsync(
+            It.Is<ConversionOptions>(o =>
+                o.ConverterType == "Macro to Rich Text Block"
+                && o.GenerateStubPartialViews == false),
+            It.IsAny<IProgress<ConversionProgress>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+
+        _queueServiceMock.Verify(q => q.CompleteQueueItemAsync(
+            queueItem.Id,
+            ConversionStatus.Completed,
+            It.IsAny<Guid?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
     public async Task WhenConverterNotFound_MarksQueueItemFailed()
     {
         var options = new ConversionOptions { ConverterType = "Nonexistent" };
@@ -178,7 +235,7 @@ public class ConversionBackgroundTaskTests
         _queueServiceMock.Setup(q => q.DequeueAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => ++callCount == 1 ? queueItem : null);
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Nonexistent"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Nonexistent"))
             .Returns((IPropertyConverter?)null);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -230,7 +287,7 @@ public class ConversionBackgroundTaskTests
                 ErrorMessage = "Test failed"
             });
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -305,7 +362,7 @@ public class ConversionBackgroundTaskTests
                 Status = ConversionStatus.Completed
             });
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -394,7 +451,7 @@ public class ConversionBackgroundTaskTests
                 Status = ConversionStatus.Completed
             });
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -449,7 +506,7 @@ public class ConversionBackgroundTaskTests
                 Status = ConversionStatus.Completed
             });
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -495,7 +552,7 @@ public class ConversionBackgroundTaskTests
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Something broke"));
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);
@@ -558,7 +615,7 @@ public class ConversionBackgroundTaskTests
                 Status = ConversionStatus.Completed
             });
 
-        _converterServiceMock.Setup(c => c.GetConverterByName("Test Converter"))
+        _converterServiceMock.Setup(c => c.GetLegacyConverterByName("Test Converter"))
             .Returns(converterMock.Object);
 
         var task = new ConversionBackgroundTask(_scopeFactoryMock.Object, _loggerMock.Object);

@@ -42,11 +42,23 @@ public class ConversionRequestDto
     /// <summary>
     /// Gets or sets the approach used to discover affected document types and content.
     /// </summary>
-    public ConversionApproach Approach { get; set; } = ConversionApproach.DocumentType;
+    public ConversionApproach Approach { get; set; } = ConversionApproach.Fast;
 
     /// <summary>
     /// Gets or sets the pre-computed conversion plan from the wizard impact step.
     /// When provided, the background task uses this directly instead of re-scanning.
     /// </summary>
     public ConversionPlan? Plan { get; set; }
+
+    /// <summary>
+    /// Gets or sets the keys of macros to convert (only used by macro converters).
+    /// If null or empty, all macros registered in Umbraco will be converted.
+    /// </summary>
+    public Guid[]? SelectedMacroKeys { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether stub partial views should be generated for
+    /// each converted macro. Defaults to true on the model so the wizard's checkbox starts checked.
+    /// </summary>
+    public bool GenerateStubPartialViews { get; set; } = true;
 }

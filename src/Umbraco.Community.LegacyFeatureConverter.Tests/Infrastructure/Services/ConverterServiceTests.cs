@@ -42,11 +42,50 @@ public class ConverterServiceTests
     }
 
     /// <summary>
-    /// Creates a ConverterService with the given converters.
+    /// Creates a ConverterService with the given property converters and no macro converters.
     /// </summary>
     private ConverterService CreateService(params IPropertyConverter[] converters)
     {
-        return new ConverterService(converters, _contentTypeServiceMock.Object, _loggerMock.Object);
+        return new ConverterService(
+            converters,
+            Array.Empty<IMacroConverter>(),
+            _contentTypeServiceMock.Object,
+            _loggerMock.Object);
+    }
+
+    /// <summary>
+    /// Creates a ConverterService with both property converters and macro converters.
+    /// </summary>
+    private ConverterService CreateService(
+        IPropertyConverter[] propertyConverters,
+        IMacroConverter[] macroConverters)
+    {
+        return new ConverterService(
+            propertyConverters,
+            macroConverters,
+            _contentTypeServiceMock.Object,
+            _loggerMock.Object);
+    }
+
+    /// <summary>
+    /// Creates a fake macro converter for testing.
+    /// </summary>
+    private static Mock<IMacroConverter> CreateFakeMacroConverter(
+        string name,
+        string targetShape = "richTextBlock",
+        string description = "Test macro converter",
+        int affectedCount = 0)
+    {
+        var mock = new Mock<IMacroConverter>();
+        mock.Setup(c => c.ConverterName).Returns(name);
+        mock.Setup(c => c.Description).Returns(description);
+        mock.Setup(c => c.ShortName).Returns(name);
+        mock.Setup(c => c.Icon).Returns("icon-code");
+        mock.Setup(c => c.Category).Returns("Macro");
+        mock.Setup(c => c.TargetShapeAlias).Returns(targetShape);
+        mock.Setup(c => c.GetAffectedUnitCountAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(affectedCount);
+        return mock;
     }
 
     [TestMethod]
@@ -196,6 +235,95 @@ public class ConverterServiceTests
         Assert.AreEqual(1, result.Count);
         Assert.AreEqual("HomePage", result[0].Name);
         Assert.AreEqual(1, result[0].PropertiesCount);
+    }
+
+    [TestMethod]
+    public void GetAllLegacyConverters_ReturnsPropertyConvertersAsLegacyBase()
+    {
+        var c1 = CreateFakeConverter("Conv A", ["Alias.A"], "Alias.B");
+        var c2 = CreateFakeConverter("Conv B", ["Alias.C"], "Alias.D");
+        var service = CreateService(c1.Object, c2.Object);
+
+        var result = service.GetAllLegacyConverters().ToList();
+
+        Assert.AreEqual(2, result.Count);
+        Assert.IsInstanceOfType<ILegacyFeatureConverter>(result[0]);
+        Assert.IsInstanceOfType<ILegacyFeatureConverter>(result[1]);
+    }
+
+    [TestMethod]
+    public void GetAllLegacyConverters_MergesPropertyAndMacroFamilies()
+    {
+        var prop = CreateFakeConverter("Property A", ["A"], "B");
+        var macro = CreateFakeMacroConverter("Macro A");
+        var service = CreateService(new[] { prop.Object }, new[] { macro.Object });
+
+        var result = service.GetAllLegacyConverters().ToList();
+
+        Assert.AreEqual(2, result.Count);
+        Assert.IsTrue(result.Any(r => r.ConverterName == "Property A"));
+        Assert.IsTrue(result.Any(r => r.ConverterName == "Macro A"));
+    }
+
+    [TestMethod]
+    public void GetLegacyConverterByName_FindsMacroConverter_CaseInsensitive()
+    {
+        var prop = CreateFakeConverter("Property A", ["A"], "B");
+        var macro = CreateFakeMacroConverter("Macro to Rich Text Block");
+        var service = CreateService(new[] { prop.Object }, new[] { macro.Object });
+
+        var found = service.GetLegacyConverterByName("macro to rich text block");
+
+        Assert.IsNotNull(found);
+        Assert.AreEqual("Macro to Rich Text Block", found.ConverterName);
+        Assert.IsInstanceOfType<IMacroConverter>(found);
+    }
+
+    [TestMethod]
+    public async Task GetConverterMetadataAsync_IncludesMacroConverters()
+    {
+        var prop = CreateFakeConverter("Property A", ["A"], "B");
+        prop.Setup(c => c.GetAffectedDocumentTypesCountAsync(
+                It.IsAny<Guid[]?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(4);
+        var macro = CreateFakeMacroConverter("Macro to RTB", affectedCount: 7);
+
+        var service = CreateService(new[] { prop.Object }, new[] { macro.Object });
+
+        var metadata = (await service.GetConverterMetadataAsync()).ToList();
+
+        Assert.AreEqual(2, metadata.Count);
+        var propMeta = metadata.Single(m => m.Name == "Property A");
+        Assert.AreEqual("Property editor", propMeta.Category);
+        Assert.AreEqual(4, propMeta.AffectedDocumentTypesCount);
+        var macroMeta = metadata.Single(m => m.Name == "Macro to RTB");
+        Assert.AreEqual("Macro", macroMeta.Category);
+        Assert.AreEqual(7, macroMeta.AffectedDocumentTypesCount);
+        Assert.AreEqual("richTextBlock", macroMeta.TargetAlias);
+        Assert.AreEqual(0, macroMeta.SourceAliases.Length);
+    }
+
+    [TestMethod]
+    public void GetLegacyConverterByName_FindsConverter_CaseInsensitive()
+    {
+        var converter = CreateFakeConverter("Nested Content to Block List", ["NC"], "BL");
+        var service = CreateService(converter.Object);
+
+        var found = service.GetLegacyConverterByName("NESTED content to block LIST");
+
+        Assert.IsNotNull(found);
+        Assert.AreEqual("Nested Content to Block List", found.ConverterName);
+    }
+
+    [TestMethod]
+    public void GetLegacyConverterByName_ReturnsNull_WhenNotFound()
+    {
+        var converter = CreateFakeConverter("Test", ["A"], "B");
+        var service = CreateService(converter.Object);
+
+        var found = service.GetLegacyConverterByName("Nonexistent");
+
+        Assert.IsNull(found);
     }
 
     [TestMethod]

@@ -1,25 +1,37 @@
 namespace Umbraco.Community.LegacyFeatureConverter.Models;
 
 /// <summary>
-/// Determines how thoroughly the converter discovers which document types and content nodes to process.
+/// Determines how thoroughly the converter discovers what to process.
+/// The two values mean different things per converter family, but share the principle
+/// "Fast does the primary scope; Thorough adds a recovery pass for drift."
 /// </summary>
 public enum ConversionApproach
 {
     /// <summary>
-    /// Scans document types for properties using the source property editor.
-    /// Updates those document types, their data types, and all associated content.
-    /// Document types with no content are still updated.
-    /// Fast — no content value scanning required.
+    /// The primary, metadata-driven scope:
+    /// <list type="bullet">
+    ///   <item>Property converters: scan document types for properties using the source property editor;
+    ///         update those document types, their data types, and all associated content.</item>
+    ///   <item>Macro converters: process every macro currently registered in Umbraco; create element types,
+    ///         configure macro-enabled RTE data types, write stub partial views, and rewrite content
+    ///         containing markup for the registered macros.</item>
+    /// </list>
     /// </summary>
-    DocumentType,
+    Fast,
 
     /// <summary>
-    /// Performs the full DocumentType approach, then additionally scans content nodes
-    /// that already use the target property editor to check whether their values were
-    /// actually converted. Catches the uSync scenario (document type updated by uSync
-    /// but content values still in the old format) and recovers from partial migration failures.
-    /// Document types with no content are still updated.
-    /// Slower due to the content value scan.
+    /// Everything <see cref="Fast"/> does, plus a recovery pass over content that's drifted from
+    /// the metadata:
+    /// <list type="bullet">
+    ///   <item>Property converters: also scan content of document types already using the target
+    ///         property editor, catching the uSync scenario (schema migrated but content values
+    ///         still in the old format).</item>
+    ///   <item>Macro converters: also scan content for orphan macro markup — aliases whose
+    ///         <c>IMacro</c> definition no longer exists. For each orphan, if an element type
+    ///         matching the alias still exists in Umbraco (from a prior conversion), rewrite the
+    ///         markup against it. If not, log a warning and leave it alone.</item>
+    /// </list>
+    /// Slower due to the extra content scan.
     /// </summary>
     Thorough
 }

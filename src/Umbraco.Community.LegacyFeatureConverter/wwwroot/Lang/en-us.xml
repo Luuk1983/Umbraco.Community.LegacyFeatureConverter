@@ -30,18 +30,27 @@
     <key alias="welcomeDescription">This wizard will guide you through converting legacy property editors to their modern equivalents.</key>
     <key alias="welcomeAffectedCount">Affected document types:</key>
     <key alias="selectApproach">Select conversion approach</key>
-    <key alias="selectApproachDescription">Choose how the converter should discover which document types and content to update.</key>
-    <key alias="approachDocumentType">Document type</key>
-    <key alias="approachDocumentTypeDescription">Scans document types for properties using the legacy editor. Updates all matching document types, their data types, and all associated content. Document types with no content are also updated.</key>
-    <key alias="approachDocumentTypePro1">Fast — no content value scanning required.</key>
-    <key alias="approachDocumentTypeCon1">Does not catch document types already updated by uSync whose content was never migrated.</key>
+    <key alias="selectApproachDescription">Choose how the converter should discover what to update.</key>
+    <key alias="approachFast">Fast</key>
     <key alias="approachThorough">Thorough</key>
-    <key alias="approachThoroughDescription">Everything the Document type approach does, plus a direct scan of content values to find any unconverted data. Catches the uSync scenario and recovers from partial migration failures.</key>
-    <key alias="approachThoroughPro1">Finds unconverted content even when the document type schema was already updated.</key>
-    <key alias="approachThoroughPro2">Safe to run after a partial or failed migration to ensure nothing was missed.</key>
-    <key alias="approachThoroughCon1">Slower: scans actual content values in addition to the schema.</key>
     <key alias="approachFastest">Fastest</key>
     <key alias="approachSlower">Slower</key>
+    <!-- Property-family approach descriptions -->
+    <key alias="approachPropertyFastDescription">Scans document types for properties using the legacy editor. Updates all matching document types, their data types, and all associated content. Document types with no content are also updated.</key>
+    <key alias="approachPropertyFastPro1">Fast — no extra content value scanning required.</key>
+    <key alias="approachPropertyFastCon1">Does not catch document types already updated by uSync whose content was never migrated.</key>
+    <key alias="approachPropertyThoroughDescription">Everything the Fast approach does, plus a direct scan of content values to find any unconverted data. Catches the uSync scenario and recovers from partial migration failures.</key>
+    <key alias="approachPropertyThoroughPro1">Finds unconverted content even when the document type schema was already updated.</key>
+    <key alias="approachPropertyThoroughPro2">Safe to run after a partial or failed migration to ensure nothing was missed.</key>
+    <key alias="approachPropertyThoroughCon1">Slower: scans actual content values in addition to the schema.</key>
+    <!-- Macro-family approach descriptions -->
+    <key alias="approachMacroFastDescription">Reasons from the macro registry. Converts every selected macro (creating element types, configuring macro-enabled Rich Text data types, writing stub partial views) and rewrites every content node that references those macros.</key>
+    <key alias="approachMacroFastPro1">Fast and predictable — only walks content for macros currently in the registry.</key>
+    <key alias="approachMacroFastCon1">Does not catch leftover macro markup whose IMacro was removed after a previous conversion. Reports any orphans in the log so you know to run Thorough if needed.</key>
+    <key alias="approachMacroThoroughDescription">Everything the Fast approach does, plus a recovery pass over orphan macro markup. For aliases whose IMacro was removed after a prior conversion, the converter looks for an existing element type with a matching alias and rewrites the orphan markup against it. Aliases with no matching element type are logged as warnings.</key>
+    <key alias="approachMacroThoroughPro1">Recovers content where the IMacro definition was cleaned up but the element type is still in place.</key>
+    <key alias="approachMacroThoroughPro2">Safe to run after a partial or failed earlier conversion.</key>
+    <key alias="approachMacroThoroughCon1">Slower: scans every content node with macro-enabled Rich Text properties for orphan markup.</key>
     <key alias="impactOverview">Impact overview</key>
     <key alias="computingPlan">Analysing your content and document types…</key>
     <key alias="noImpact">Nothing to convert was found for the selected approach.</key>
@@ -83,5 +92,25 @@
     <key alias="startNewConversion">Start a new conversion</key>
     <key alias="selectConverter">Select a converter</key>
     <key alias="selectConverterDescription">Choose a converter to start the conversion process.</key>
+    <!-- Macro converter additions -->
+    <key alias="categoryAll">All</key>
+    <key alias="categoryPropertyEditor">Property editor</key>
+    <key alias="categoryMacro">Macro</key>
+    <key alias="filterCategory">Category</key>
+    <key alias="selectMacros">Select macros</key>
+    <key alias="selectMacrosDescription">Select the macros you want to convert. Unselected macros will be left untouched.</key>
+    <key alias="macro">Macro</key>
+    <key alias="macros">macros</key>
+    <key alias="macroUsage">Usage</key>
+    <key alias="macroRteProperties">RTE properties</key>
+    <key alias="macroTargetElementType">Target element type</key>
+    <key alias="macroNeedsPartialView">Partial view</key>
+    <key alias="generateStubPartialViews">Generate stub partial views</key>
+    <key alias="generateStubPartialViewsDescription">Writes a stub partial view for every converted macro to /Views/Partials/richtext/Components/ with migration instructions and the original macro code. Recommended.</key>
+    <key alias="impactOverviewMacros">Impact — macros</key>
+    <key alias="selectedMacros">Selected macros</key>
+    <key alias="noMacroImpact">No macros referenced in rich text content were found.</key>
+    <key alias="elementTypeExists">exists</key>
+    <key alias="yes">Yes</key>
   </area>
 </language>

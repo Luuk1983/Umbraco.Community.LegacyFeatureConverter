@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Umbraco.Community.LegacyFeatureConverter.Converters;
 using Umbraco.Community.LegacyFeatureConverter.Models;
 using Umbraco.Community.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -139,11 +140,13 @@ public class ConversionBackgroundTask : BackgroundService
             return;
         }
 
-        var converter = converterService.GetConverterByName(options.ConverterType);
-        if (converter == null)
+        // Look up across both converter families (property + macro). Each family has its own
+        // execute signature, so we branch on the resolved type when dispatching.
+        var converter = converterService.GetLegacyConverterByName(options.ConverterType);
+        if (converter is null or not (IPropertyConverter or IMacroConverter))
         {
             _logger.LogError(
-                "Legacy Feature Converter: Converter '{ConverterType}' not found for queue item {QueueItemId}",
+                "Legacy Feature Converter: Converter '{ConverterType}' not found (or of unknown family) for queue item {QueueItemId}",
                 options.ConverterType, queueItem.Id);
             await queueService.CompleteQueueItemAsync(
                 queueItem.Id, ConversionStatus.Failed, cancellationToken: cancellationToken);
@@ -182,7 +185,7 @@ public class ConversionBackgroundTask : BackgroundService
     /// <param name="cancellationToken">Token to support cancellation.</param>
     /// <returns>True if the test run completed without failures, false otherwise.</returns>
     private async Task<bool> RunTestConversionAsync(
-        Converters.IPropertyConverter converter,
+        ILegacyFeatureConverter converter,
         ConversionOptions options,
         Guid queueItemId,
         IConversionQueueService queueService,
@@ -193,19 +196,25 @@ public class ConversionBackgroundTask : BackgroundService
             "Legacy Feature Converter: Running test conversion for queue item {QueueItemId}",
             queueItemId);
 
+        // Test options carry the same selection / behavior toggles as the real run,
+        // just with IsTestRun=true and RunTestFirst=false to prevent recursion.
+        // Macro-specific fields are copied through too so the dry run mirrors the real run.
         var testOptions = new ConversionOptions
         {
             ConverterType = options.ConverterType,
             SelectedDocumentTypeKeys = options.SelectedDocumentTypeKeys,
+            SelectedMacroKeys = options.SelectedMacroKeys,
             IsTestRun = true,
             StopOnError = options.StopOnError,
             RunTestFirst = false, // Prevent infinite recursion
-            PerformingUserKey = options.PerformingUserKey
+            PerformingUserKey = options.PerformingUserKey,
+            GenerateStubPartialViews = options.GenerateStubPartialViews,
+            Plan = options.Plan,
+            Approach = options.Approach
         };
 
         var progress = progressFactory.Create(queueItemId);
-        var testResult = await converter.ExecuteConversionAsync(
-            testOptions, progress: progress, cancellationToken: cancellationToken);
+        var testResult = await DispatchAsync(converter, testOptions, progress, cancellationToken);
 
         if (testResult.Status == ConversionStatus.Failed)
         {
@@ -240,7 +249,7 @@ public class ConversionBackgroundTask : BackgroundService
     /// <param name="progressFactory">Factory for creating SignalR progress reporters.</param>
     /// <param name="cancellationToken">Token to support cancellation.</param>
     private async Task ExecuteConversionAsync(
-        Converters.IPropertyConverter converter,
+        ILegacyFeatureConverter converter,
         ConversionOptions options,
         Guid queueItemId,
         IConversionQueueService queueService,
@@ -251,8 +260,7 @@ public class ConversionBackgroundTask : BackgroundService
 
         try
         {
-            var result = await converter.ExecuteConversionAsync(
-                options, progress: progress, cancellationToken: cancellationToken);
+            var result = await DispatchAsync(converter, options, progress, cancellationToken);
 
             await queueService.CompleteQueueItemAsync(
                 queueItemId, result.Status, result.ConversionId, cancellationToken);
@@ -286,6 +294,26 @@ public class ConversionBackgroundTask : BackgroundService
             await progressFactory.SendCompletedAsync(
                 queueItemId, ConversionStatus.Failed, null);
         }
+    }
+
+    /// <summary>
+    /// Dispatches to the right family-specific <c>ExecuteConversionAsync</c> overload.
+    /// Property and macro converters each define their own signature on their specialized
+    /// interface, so we branch here rather than forcing the signature onto the shared base.
+    /// </summary>
+    private static Task<ConversionResult> DispatchAsync(
+        ILegacyFeatureConverter converter,
+        ConversionOptions options,
+        IProgress<ConversionProgress> progress,
+        CancellationToken cancellationToken)
+    {
+        return converter switch
+        {
+            IPropertyConverter p => p.ExecuteConversionAsync(options, progress, cancellationToken),
+            IMacroConverter m => m.ExecuteConversionAsync(options, progress, cancellationToken),
+            _ => throw new InvalidOperationException(
+                $"Unknown converter family for '{converter.ConverterName}'. Background task can only dispatch to IPropertyConverter or IMacroConverter.")
+        };
     }
 
     /// <summary>

@@ -50,9 +50,9 @@ public class ConversionOptions
 
     /// <summary>
     /// Gets or sets the approach used to discover which document types and content to process.
-    /// Defaults to <see cref="ConversionApproach.DocumentType"/>.
+    /// Defaults to <see cref="ConversionApproach.Fast"/>.
     /// </summary>
-    public ConversionApproach Approach { get; set; } = ConversionApproach.DocumentType;
+    public ConversionApproach Approach { get; set; } = ConversionApproach.Fast;
 
     /// <summary>
     /// Gets or sets the pre-computed conversion plan from the wizard.
@@ -60,4 +60,19 @@ public class ConversionOptions
     /// avoiding duplicate work and ensuring the migration matches the preview exactly.
     /// </summary>
     public ConversionPlan? Plan { get; set; }
+
+    /// <summary>
+    /// Gets or sets the keys of macros to convert (only used by macro converters).
+    /// If null or empty, all macros registered in Umbraco will be converted.
+    /// </summary>
+    public Guid[]? SelectedMacroKeys { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether stub partial views should be generated for
+    /// each converted macro at <c>/Views/Partials/richtext/Components/{MacroName}.cshtml</c>,
+    /// containing migration instructions and the original macro view as a comment.
+    /// Default is true. Only used by macro converters. Honors <see cref="IsTestRun"/>:
+    /// no files are written during a dry run.
+    /// </summary>
+    public bool GenerateStubPartialViews { get; set; } = true;
 }

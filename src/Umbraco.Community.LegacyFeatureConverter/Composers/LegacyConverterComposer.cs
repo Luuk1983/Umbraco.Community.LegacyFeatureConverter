@@ -1,5 +1,6 @@
 using Umbraco.Community.LegacyFeatureConverter.Backoffice;
 using Umbraco.Community.LegacyFeatureConverter.Converters;
+using Umbraco.Community.LegacyFeatureConverter.Converters.Macros;
 using Umbraco.Community.LegacyFeatureConverter.Converters.MediaPicker;
 using Umbraco.Community.LegacyFeatureConverter.Converters.NestedContent;
 using Umbraco.Community.LegacyFeatureConverter.Data;
@@ -25,6 +26,7 @@ namespace Umbraco.Community.LegacyFeatureConverter.Composers;
 /// </summary>
 public class LegacyConverterComposer : IComposer
 {
+
     /// <summary>
     /// Registers all services, converters, and infrastructure with the Umbraco DI container.
     /// </summary>
@@ -40,9 +42,13 @@ public class LegacyConverterComposer : IComposer
         builder.Services.AddScoped<IConverterService, ConverterService>();
         builder.Services.AddScoped<IProgressReporterFactory, SignalRProgressReporterFactory>();
 
-        // === Built-in converters (auto-discovered via IEnumerable<IPropertyConverter>) ===
+        // === Built-in property converters (registered as IEnumerable<IPropertyConverter>) ===
         builder.Services.AddScoped<IPropertyConverter, NestedContentConverter>();
         builder.Services.AddScoped<IPropertyConverter, MediaPickerConverter>();
+
+        // === Macro converters (registered as IEnumerable<IMacroConverter>) ===
+        builder.Services.AddScoped<IMacroConverterQueryService, MacroConverterQueryService>();
+        builder.Services.AddScoped<IMacroConverter, MacroToRichTextBlockConverter>();
 
         // === Background task (queue processing) ===
         builder.Services.AddHostedService<ConversionBackgroundTask>();

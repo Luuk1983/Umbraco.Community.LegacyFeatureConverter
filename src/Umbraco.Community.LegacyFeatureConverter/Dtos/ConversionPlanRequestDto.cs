@@ -15,5 +15,5 @@ public class ConversionPlanRequestDto
     /// <summary>
     /// Gets or sets the approach to use when discovering affected document types and content.
     /// </summary>
-    public ConversionApproach Approach { get; set; } = ConversionApproach.DocumentType;
+    public ConversionApproach Approach { get; set; } = ConversionApproach.Fast;
 }

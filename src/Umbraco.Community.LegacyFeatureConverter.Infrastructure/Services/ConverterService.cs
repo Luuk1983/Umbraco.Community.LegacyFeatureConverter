@@ -7,13 +7,15 @@ using Umbraco.Cms.Core.Services;
 namespace Umbraco.Community.LegacyFeatureConverter.Infrastructure.Services;
 
 /// <summary>
-/// Service for discovering and managing property converters.
+/// Service for discovering and managing converters across all families.
 /// Converters are automatically discovered via dependency injection —
 /// any <see cref="IPropertyConverter"/> registered in the DI container is available here.
+/// (Macro converters land in Phase B and are merged into the same metadata/lookup APIs.)
 /// </summary>
 public class ConverterService : IConverterService
 {
     private readonly IEnumerable<IPropertyConverter> _converters;
+    private readonly IEnumerable<IMacroConverter> _macroConverters;
     private readonly IContentTypeService _contentTypeService;
     private readonly ILogger<ConverterService> _logger;
 
@@ -21,14 +23,17 @@ public class ConverterService : IConverterService
     /// Initializes a new instance of the <see cref="ConverterService"/> class.
     /// </summary>
     /// <param name="converters">All registered property converters, injected via DI.</param>
+    /// <param name="macroConverters">All registered macro converters, injected via DI. Empty when none are registered.</param>
     /// <param name="contentTypeService">The Umbraco content type service.</param>
     /// <param name="logger">The logger instance.</param>
     public ConverterService(
         IEnumerable<IPropertyConverter> converters,
+        IEnumerable<IMacroConverter> macroConverters,
         IContentTypeService contentTypeService,
         ILogger<ConverterService> logger)
     {
         _converters = converters ?? throw new ArgumentNullException(nameof(converters));
+        _macroConverters = macroConverters ?? throw new ArgumentNullException(nameof(macroConverters));
         _contentTypeService = contentTypeService ?? throw new ArgumentNullException(nameof(contentTypeService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -43,6 +48,26 @@ public class ConverterService : IConverterService
     public IPropertyConverter? GetConverterByName(string converterName)
     {
         return _converters.FirstOrDefault(c =>
+            c.ConverterName.Equals(converterName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<ILegacyFeatureConverter> GetAllLegacyConverters()
+    {
+        foreach (var c in _converters)
+        {
+            yield return c;
+        }
+        foreach (var m in _macroConverters)
+        {
+            yield return m;
+        }
+    }
+
+    /// <inheritdoc />
+    public ILegacyFeatureConverter? GetLegacyConverterByName(string converterName)
+    {
+        return GetAllLegacyConverters().FirstOrDefault(c =>
             c.ConverterName.Equals(converterName, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -81,6 +106,41 @@ public class ConverterService : IConverterService
             {
                 _logger.LogError(ex, "Error getting metadata for converter {ConverterName}",
                     converter.ConverterName);
+            }
+        }
+
+        // Macro converters surface metadata through the same DTO. Source/target editor aliases
+        // are not meaningful for macros — left as defaults (empty array / empty string).
+        // The "affected unit count" semantic per family lives on ILegacyFeatureConverter.
+        foreach (var macroConverter in _macroConverters)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                ILegacyFeatureConverter asBase = macroConverter;
+                var count = await asBase.GetAffectedUnitCountAsync(cancellationToken);
+
+                metadata.Add(new ConverterMetadata
+                {
+                    Name = macroConverter.ConverterName,
+                    Description = macroConverter.Description,
+                    ShortName = macroConverter.ShortName,
+                    Icon = macroConverter.Icon,
+                    Category = macroConverter.Category,
+                    SourceAliases = Array.Empty<string>(),
+                    TargetAlias = macroConverter.TargetShapeAlias,
+                    AffectedDocumentTypesCount = count
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting metadata for macro converter {ConverterName}",
+                    macroConverter.ConverterName);
             }
         }
 
@@ -154,13 +214,19 @@ public class ConverterService : IConverterService
         ConversionApproach approach,
         CancellationToken cancellationToken = default)
     {
-        var converter = GetConverterByName(converterName);
-        if (converter == null)
+        // Look up across both families so the wizard can drive a single endpoint.
+        var legacy = GetLegacyConverterByName(converterName);
+        if (legacy == null)
         {
             _logger.LogWarning("Converter {ConverterName} not found", converterName);
             return new ConversionPlan { Approach = approach, ComputedAt = DateTime.UtcNow };
         }
 
-        return await converter.ComputePlanAsync(approach, cancellationToken);
+        return legacy switch
+        {
+            IPropertyConverter p => await p.ComputePlanAsync(approach, cancellationToken),
+            IMacroConverter m => await m.ComputePlanAsync(approach, cancellationToken),
+            _ => new ConversionPlan { Approach = approach, ComputedAt = DateTime.UtcNow }
+        };
     }
 }
