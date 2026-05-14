@@ -82,10 +82,15 @@
     <key alias="queueConversion">Conversie in wachtrij plaatsen</key>
     <key alias="logEntries">Logregels</key>
     <key alias="noLogEntries">Geen logregels gevonden.</key>
+    <key alias="noLogEntriesForFilter">Geen logregels voldoen aan het huidige filter.</key>
     <key alias="level">Niveau</key>
     <key alias="timestamp">Tijd</key>
     <key alias="itemType">Type</key>
     <key alias="message">Bericht</key>
+    <key alias="failures">Fouten</key>
+    <key alias="errorMessage">Foutmelding</key>
+    <key alias="skipped">Overgeslagen</key>
+    <key alias="reason">Reden</key>
     <key alias="backToOverview">Terug naar overzicht</key>
     <key alias="conversionNotFound">Conversie niet gevonden.</key>
     <key alias="queueEmpty">De wachtrij is momenteel leeg.</key>

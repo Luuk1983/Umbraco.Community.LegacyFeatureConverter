@@ -14,6 +14,15 @@ namespace Umbraco.Community.LegacyFeatureConverter.Infrastructure.Services;
 /// </summary>
 public class ConversionHistoryService : IConversionHistoryService
 {
+    // The API controller returns history with PropertyNamingPolicy.CamelCase, but
+    // history.Summary is a string — the controller doesn't re-encode it. Serialize the
+    // summary itself with camelCase so the frontend can use the same casing convention
+    // throughout (otherwise vm.summary.documentTypes etc. resolve to undefined).
+    private static readonly JsonSerializerOptions SummaryJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly LegacyFeatureConverterDbContext _dbContext;
     private readonly ILogger<ConversionHistoryService> _logger;
 
@@ -102,6 +111,15 @@ public class ConversionHistoryService : IConversionHistoryService
         }
         catch (Exception ex)
         {
+            // Belt and braces: if EF persistence ever fails (full disk, schema drift,
+            // connection drop, etc.) the original level/itemType/message/itemName/details
+            // would otherwise be lost. Re-emit them at the same level via Serilog with
+            // an audit-fallback marker so the failure remains greppable in Umbraco's log.
+            _logger.Log(level,
+                "[LFC-AUDIT-FALLBACK] {ItemType} | {ItemName} | {ItemKey} | {Message}{Details}",
+                itemType, itemName ?? "(none)", itemKey ?? "(none)", message,
+                string.IsNullOrEmpty(details) ? string.Empty : $" | Details: {details}");
+
             _logger.LogError(ex, "Failed to add log entry for conversion {ConversionId}", conversionId);
             throw;
         }
@@ -138,21 +156,25 @@ public class ConversionHistoryService : IConversionHistoryService
                 result.StartedAt,
                 result.CompletedAt,
                 result.Duration,
+                // Message is included so the details page can surface WHY an item was skipped
+                // (e.g. "No properties to convert", "Data type already exists"). Without it,
+                // the Skipped count is opaque to the user.
                 DocumentTypes = result.DocumentTypes.Select(dt => new
                 {
                     dt.Key, dt.Name, dt.Alias, dt.Success, dt.Skipped,
-                    dt.PropertiesUpdated, dt.ErrorMessage
+                    dt.PropertiesUpdated, dt.ErrorMessage, dt.Message
                 }),
                 DataTypes = result.DataTypes.Select(dt => new
                 {
-                    dt.Id, dt.Name, dt.Key, dt.Success, dt.Skipped, dt.ErrorMessage
+                    dt.Id, dt.Name, dt.Key, dt.Success, dt.Skipped,
+                    dt.ErrorMessage, dt.Message
                 }),
                 ContentNodes = result.ContentNodes.Select(cn => new
                 {
                     cn.Id, cn.Key, cn.Name, cn.Success, cn.Skipped,
-                    cn.PropertiesConverted, cn.ErrorMessage
+                    cn.PropertiesConverted, cn.ErrorMessage, cn.Message
                 })
-            });
+            }, SummaryJsonOptions);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
 

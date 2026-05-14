@@ -82,10 +82,15 @@
     <key alias="queueConversion">Queue conversion</key>
     <key alias="logEntries">Log entries</key>
     <key alias="noLogEntries">No log entries found.</key>
+    <key alias="noLogEntriesForFilter">No log entries match the current filter.</key>
     <key alias="level">Level</key>
     <key alias="timestamp">Time</key>
     <key alias="itemType">Type</key>
     <key alias="message">Message</key>
+    <key alias="failures">Failures</key>
+    <key alias="errorMessage">Error</key>
+    <key alias="skipped">Skipped</key>
+    <key alias="reason">Reason</key>
     <key alias="backToOverview">Back to overview</key>
     <key alias="conversionNotFound">Conversion not found.</key>
     <key alias="queueEmpty">The queue is currently empty.</key>

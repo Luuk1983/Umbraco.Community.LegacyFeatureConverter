@@ -1,3 +1,4 @@
+using Umbraco.Community.LegacyFeatureConverter.Converters;
 using Umbraco.Community.LegacyFeatureConverter.Converters.NestedContent;
 using Umbraco.Community.LegacyFeatureConverter.Services;
 using Microsoft.Extensions.Logging;
@@ -107,14 +108,67 @@ public class NestedContentConverterTests
     }
 
     [TestMethod]
-    public async Task ConvertPropertyValue_WithInvalidJson_ReturnsNull()
+    public async Task ConvertPropertyValue_WithInvalidJson_Throws()
     {
+        // Behaviour change: previously the converter swallowed every exception and returned
+        // null, which Phase 4 treats as "no change needed" and the item ends up Skipped — so
+        // a corrupted stored value would silently slip past the conversion. We now throw
+        // PropertyConversionException with attribution context so the outer per-content
+        // catch in BasePropertyConverter writes a clear Error row.
         var property = new Mock<IProperty>();
         property.Setup(p => p.Alias).Returns("test");
 
-        var result = await InvokeConvertPropertyValue("not json", property.Object);
+        var ex = await Assert.ThrowsExactlyAsync<PropertyConversionException>(
+            () => InvokeConvertPropertyValue("not json", property.Object));
+        Assert.AreEqual("test", ex.PropertyAlias);
+        Assert.IsNull(ex.InnerKey);
+        Assert.IsTrue(ex.Reason.Contains("not valid JSON", StringComparison.OrdinalIgnoreCase));
+    }
 
-        Assert.IsNull(result);
+    [TestMethod]
+    public async Task ConvertPropertyValue_WithMissingElementType_Throws()
+    {
+        // The user's actual data-corruption root cause: outer NC value with one item
+        // referencing an element-type alias that doesn't exist. Previously we returned
+        // null and the original NC array was left in place against a Block-List editor
+        // (the persisted shape that breaks the indexer). We now throw.
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("blocks");
+        // _contentTypeService.Get("missingType") returns null by default — no setup needed.
+
+        var ncJson = @"[{""ncContentTypeAlias"":""missingType"",""key"":""abc"",""title"":""Hello""}]";
+
+        var ex = await Assert.ThrowsExactlyAsync<PropertyConversionException>(
+            () => InvokeConvertPropertyValue(ncJson, property.Object));
+        Assert.AreEqual("blocks", ex.PropertyAlias);
+        Assert.IsNull(ex.InnerKey);
+        Assert.IsTrue(ex.Reason.Contains("no items could be converted", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public async Task ConvertPropertyValue_WithNestedMissingElementType_Throws()
+    {
+        // The inner-fallback bug: outer item resolves, but its "steps" property contains
+        // a nested NC array referencing a missing element type. The old code silently
+        // copied the raw NC array string into the resulting BL JSON — exactly the shape
+        // that produces "Failed to add property 'steps' to index" in Examine. We now
+        // throw with the inner key so the user knows WHICH property inside WHICH content
+        // failed.
+        var outerKey = Guid.NewGuid();
+        SetupContentType("validOuter", outerKey);
+
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("blocks");
+
+        // Outer NC array → one item of validOuter, whose "steps" property is itself an
+        // NC array referencing missingInner (which is not registered).
+        var nestedNc = @"[{\""ncContentTypeAlias\"":\""missingInner\"",\""key\"":\""xyz\""}]";
+        var outerJson = @"[{""ncContentTypeAlias"":""validOuter"",""key"":""abc"",""steps"":""" + nestedNc + @"""}]";
+
+        var ex = await Assert.ThrowsExactlyAsync<PropertyConversionException>(
+            () => InvokeConvertPropertyValue(outerJson, property.Object));
+        Assert.AreEqual("blocks", ex.PropertyAlias);
+        Assert.AreEqual("steps", ex.InnerKey);
     }
 
     [TestMethod]
@@ -129,6 +183,75 @@ public class NestedContentConverterTests
         var result = await InvokeConvertPropertyValue(blockListJson, property.Object);
 
         Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public async Task ConvertPropertyValue_WithDoubleEncodedInnerString_ReturnsRepairedJson()
+    {
+        // Regression test for the indexer error
+        //   "Cannot assign value \"\"2022-09-09T14:00:00\"\" of type \"System.String\" to property
+        //    \"dateTimeEndValue\" expecting type \"System.DateTime\""
+        // The pre-87bb104 version of this converter ran Newtonsoft with default date parsing,
+        // which caused inner property values that looked like ISO dates to be re-serialised with
+        // an extra layer of quoting. The legacy database still contains values like
+        //   "dateTimeEndValue": "\"2022-09-09T14:00:00\""
+        // (literal quote characters as part of the C# string). Today's converter must detect that
+        // shape on Thorough re-runs and emit a repaired Block List value instead of silently
+        // returning null (which would leave the indexer broken forever).
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("datesAndTimesBL");
+
+        // The actual shape from the user's uSync content config:
+        // "dateTimeEndValue": "\"2022-09-09T14:00:00\"" — a JSON-encoded string whose
+        // unescaped value is itself a quoted string.
+        var brokenBl =
+            @"{""layout"":{""Umbraco.BlockList"":[{""contentUdi"":""umb://element/2e9ce5f8b4b945acbf7e2767b22af455""}]}," +
+            @"""contentData"":[{""contentTypeKey"":""b41215cd-5f6a-4d3e-b0d9-63edb202ed20""," +
+            @"""dateTimeEndValue"":""\""2022-09-09T14:00:00\""""," +
+            @"""dateTimeValue"":""\""2022-09-09T12:00:00\""""," +
+            @"""udi"":""umb://element/2e9ce5f8b4b945acbf7e2767b22af455""}]," +
+            @"""settingsData"":[]}";
+
+        var result = await InvokeConvertPropertyValue(brokenBl, property.Object);
+
+        Assert.IsNotNull(result, "Should return a repaired value, not null.");
+        // Inspect the raw JSON string: Newtonsoft's default DateParseHandling would auto-convert
+        // unquoted ISO date strings to DateTime when re-parsing into a JObject, which would
+        // hide what's actually persisted. The thing we care about is exactly how the value
+        // serialises, and the bug-vs-fix difference is precisely about an extra layer of quotes.
+        var raw = result.ToString()!;
+        Assert.IsTrue(
+            raw.Contains(@"""dateTimeEndValue"":""2022-09-09T14:00:00"""),
+            $"Expected single-quoted ISO date in output, got: {raw}");
+        Assert.IsTrue(
+            raw.Contains(@"""dateTimeValue"":""2022-09-09T12:00:00"""),
+            $"Expected single-quoted ISO date in output, got: {raw}");
+        // And the double-quoted form must be gone.
+        Assert.IsFalse(
+            raw.Contains(@"\""2022-09-09"),
+            $"Double-encoded date should have been unwrapped, but output still contains escaped quotes: {raw}");
+    }
+
+    [TestMethod]
+    public async Task ConvertPropertyValue_WithCleanBlockList_ReturnsNull()
+    {
+        // Counterpart to the previous test: a Block List value whose inner property values are
+        // already clean must NOT be flagged as needing repair, otherwise Phase 4b would re-save
+        // every already-converted item on every run.
+        var property = new Mock<IProperty>();
+        property.Setup(p => p.Alias).Returns("datesAndTimes");
+
+        var cleanBl =
+            @"{""layout"":{""Umbraco.BlockList"":[{""contentUdi"":""umb://element/0bf3b4eb57bc4cc38e734b60f9cc1689""}]}," +
+            @"""contentData"":[{""contentTypeKey"":""b41215cd-5f6a-4d3e-b0d9-63edb202ed20""," +
+            @"""dateTimeEndValue"":""2022-09-09T14:00:00""," +
+            @"""dateTimeValue"":""2022-09-09T12:00:00""," +
+            @"""udi"":""umb://element/0bf3b4eb57bc4cc38e734b60f9cc1689""}]," +
+            @"""settingsData"":[]}";
+
+        var result = await InvokeConvertPropertyValue(cleanBl, property.Object);
+
+        Assert.IsNull(result, "Clean Block List should be left alone (no save triggered).");
     }
 
     [TestMethod]
