@@ -30,18 +30,27 @@
     <key alias="welcomeDescription">Deze wizard helpt u bij het converteren van verouderde property editors naar hun moderne equivalent.</key>
     <key alias="welcomeAffectedCount">Betrokken documenttypen:</key>
     <key alias="selectApproach">Kies conversiemethode</key>
-    <key alias="selectApproachDescription">Kies hoe de converter bepaalt welke documenttypen en content bijgewerkt moeten worden.</key>
-    <key alias="approachDocumentType">Documenttype</key>
-    <key alias="approachDocumentTypeDescription">Scant documenttypen op eigenschappen met de verouderde editor. Werkt alle overeenkomende documenttypen, datatypen en bijbehorende content bij. Documenttypen zonder content worden ook bijgewerkt.</key>
-    <key alias="approachDocumentTypePro1">Snel — geen scan van contentwaarden vereist.</key>
-    <key alias="approachDocumentTypeCon1">Vangt geen documenttypen die al via uSync zijn bijgewerkt maar nog ongeconverteerde content hebben.</key>
+    <key alias="selectApproachDescription">Kies hoe de converter bepaalt wat er bijgewerkt moet worden.</key>
+    <key alias="approachFast">Snel</key>
     <key alias="approachThorough">Grondig</key>
-    <key alias="approachThoroughDescription">Alles wat de documenttype-methode doet, plus een directe scan van contentwaarden om ongeconverteerde data te vinden. Vangt het uSync-scenario en herstelt gedeeltelijk mislukte migraties.</key>
-    <key alias="approachThoroughPro1">Vindt ongeconverteerde content ook als het documenttype-schema al is bijgewerkt.</key>
-    <key alias="approachThoroughPro2">Veilig uit te voeren na een gedeeltelijke of mislukte migratie om zeker te weten dat niets is gemist.</key>
-    <key alias="approachThoroughCon1">Langzamer: scant naast het schema ook de daadwerkelijke contentwaarden.</key>
     <key alias="approachFastest">Snelst</key>
     <key alias="approachSlower">Langzamer</key>
+    <!-- Eigenschapsveld-conversiemethoden -->
+    <key alias="approachPropertyFastDescription">Scant documenttypen op eigenschappen met de verouderde editor. Werkt alle overeenkomende documenttypen, datatypen en bijbehorende content bij. Documenttypen zonder content worden ook bijgewerkt.</key>
+    <key alias="approachPropertyFastPro1">Snel — geen extra scan van contentwaarden vereist.</key>
+    <key alias="approachPropertyFastCon1">Vangt geen documenttypen die al via uSync zijn bijgewerkt maar nog ongeconverteerde content hebben.</key>
+    <key alias="approachPropertyThoroughDescription">Alles wat de Snel-methode doet, plus een directe scan van contentwaarden om ongeconverteerde data te vinden. Vangt het uSync-scenario en herstelt gedeeltelijk mislukte migraties.</key>
+    <key alias="approachPropertyThoroughPro1">Vindt ongeconverteerde content ook als het documenttype-schema al is bijgewerkt.</key>
+    <key alias="approachPropertyThoroughPro2">Veilig uit te voeren na een gedeeltelijke of mislukte migratie om zeker te weten dat niets is gemist.</key>
+    <key alias="approachPropertyThoroughCon1">Langzamer: scant naast het schema ook de daadwerkelijke contentwaarden.</key>
+    <!-- Macro-conversiemethoden -->
+    <key alias="approachMacroFastDescription">Werkt vanuit het macro-overzicht. Converteert elke geselecteerde macro (maakt elementtypen aan, configureert macro-toegankelijke Rich Text-datatypen, schrijft stub partial views) en herschrijft elke contentpagina die naar die macro's verwijst.</key>
+    <key alias="approachMacroFastPro1">Snel en voorspelbaar — doorzoekt alleen content voor macro's die op dit moment in het overzicht staan.</key>
+    <key alias="approachMacroFastCon1">Vangt geen achtergebleven macro-markup waarvan de IMacro na een eerdere conversie is verwijderd. Eventuele wezen worden in het log gerapporteerd zodat u weet dat een Grondige conversie nodig is.</key>
+    <key alias="approachMacroThoroughDescription">Alles wat de Snel-methode doet, plus een herstelronde voor verweesde macro-markup. Voor aliassen waarvan de IMacro na een eerdere conversie is verwijderd, zoekt de converter naar een bestaand elementtype met dezelfde alias en herschrijft hij de markup daartegen. Aliassen zonder overeenkomend elementtype worden als waarschuwing gelogd.</key>
+    <key alias="approachMacroThoroughPro1">Herstelt content waar de IMacro-definitie is opgeruimd maar het elementtype nog bestaat.</key>
+    <key alias="approachMacroThoroughPro2">Veilig uit te voeren na een gedeeltelijke of mislukte eerdere conversie.</key>
+    <key alias="approachMacroThoroughCon1">Langzamer: scant elke contentpagina met macro-toegankelijke Rich Text-eigenschappen op verweesde markup.</key>
     <key alias="impactOverview">Impact overzicht</key>
     <key alias="computingPlan">Uw content en documenttypen worden geanalyseerd…</key>
     <key alias="noImpact">Er is niets gevonden om te converteren voor de gekozen methode.</key>
@@ -83,5 +92,25 @@
     <key alias="startNewConversion">Start een nieuwe conversie</key>
     <key alias="selectConverter">Kies een converter</key>
     <key alias="selectConverterDescription">Kies een converter om het conversieproces te starten.</key>
+    <!-- Macro converter toevoegingen -->
+    <key alias="categoryAll">Alles</key>
+    <key alias="categoryPropertyEditor">Eigenschapsveldeditor</key>
+    <key alias="categoryMacro">Macro</key>
+    <key alias="filterCategory">Categorie</key>
+    <key alias="selectMacros">Selecteer macro's</key>
+    <key alias="selectMacrosDescription">Selecteer de macro's die u wilt converteren. Niet-geselecteerde macro's blijven ongewijzigd.</key>
+    <key alias="macro">Macro</key>
+    <key alias="macros">macro's</key>
+    <key alias="macroUsage">Gebruik</key>
+    <key alias="macroRteProperties">RTE-eigenschappen</key>
+    <key alias="macroTargetElementType">Doel-elementtype</key>
+    <key alias="macroNeedsPartialView">Partial view</key>
+    <key alias="generateStubPartialViews">Stub partial views genereren</key>
+    <key alias="generateStubPartialViewsDescription">Schrijft een stub partial view voor elke geconverteerde macro naar /Views/Partials/richtext/Components/ met migratie-instructies en de originele macrocode. Aanbevolen.</key>
+    <key alias="impactOverviewMacros">Impact — macro's</key>
+    <key alias="selectedMacros">Geselecteerde macro's</key>
+    <key alias="noMacroImpact">Er zijn geen macro's gevonden in rich text content.</key>
+    <key alias="elementTypeExists">bestaat</key>
+    <key alias="yes">Ja</key>
   </area>
 </language>

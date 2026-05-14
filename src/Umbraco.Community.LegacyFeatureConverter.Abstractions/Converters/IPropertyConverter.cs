@@ -9,14 +9,14 @@ namespace Umbraco.Community.LegacyFeatureConverter.Converters;
 /// Package consumers can implement this interface and register their converter
 /// in the DI container to add custom conversions. The converter will be automatically
 /// discovered by the <see cref="Services.IConverterService"/>.
+///
+/// Shared metadata (<see cref="ILegacyFeatureConverter.ConverterName"/>,
+/// <see cref="ILegacyFeatureConverter.Description"/>, <see cref="ILegacyFeatureConverter.ShortName"/>,
+/// <see cref="ILegacyFeatureConverter.Icon"/>, <see cref="ILegacyFeatureConverter.Category"/>) is
+/// inherited from <see cref="ILegacyFeatureConverter"/>.
 /// </summary>
-public interface IPropertyConverter
+public interface IPropertyConverter : ILegacyFeatureConverter
 {
-    /// <summary>
-    /// Gets the human-readable name of this converter (e.g., "Nested Content to Block List").
-    /// </summary>
-    string ConverterName { get; }
-
     /// <summary>
     /// Gets the property editor aliases this converter can convert FROM
     /// (e.g., <c>["Umbraco.NestedContent"]</c>).
@@ -28,29 +28,6 @@ public interface IPropertyConverter
     /// (e.g., <c>"Umbraco.BlockList"</c>).
     /// </summary>
     string TargetPropertyEditorAlias { get; }
-
-    /// <summary>
-    /// Gets a brief description of what this converter does, displayed in the backoffice UI.
-    /// </summary>
-    string Description { get; }
-
-    /// <summary>
-    /// Gets a short display name for the converter card UI (e.g., "Nested Content", "Media Picker").
-    /// Defaults to <see cref="ConverterName"/> if not overridden.
-    /// </summary>
-    string ShortName => ConverterName;
-
-    /// <summary>
-    /// Gets the Umbraco backoffice icon for this converter (e.g., "icon-axis-rotation").
-    /// Used in the converter picker card UI.
-    /// </summary>
-    string Icon => "icon-axis-rotation";
-
-    /// <summary>
-    /// Gets the category label for this converter (e.g., "Property editor").
-    /// Used to label converters in the picker card UI.
-    /// </summary>
-    string Category => "Property editor";
 
     /// <summary>
     /// Executes the conversion process with the specified options.
@@ -86,4 +63,11 @@ public interface IPropertyConverter
     Task<ConversionPlan> ComputePlanAsync(
         ConversionApproach approach,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Default <see cref="ILegacyFeatureConverter.GetAffectedUnitCountAsync"/> implementation:
+    /// property converters report affected document types as their "unit".
+    /// </summary>
+    Task<int> ILegacyFeatureConverter.GetAffectedUnitCountAsync(CancellationToken cancellationToken)
+        => GetAffectedDocumentTypesCountAsync(null, cancellationToken);
 }

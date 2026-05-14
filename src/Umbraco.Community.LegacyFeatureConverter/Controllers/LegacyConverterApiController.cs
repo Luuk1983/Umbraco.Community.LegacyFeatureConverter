@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Umbraco.Community.LegacyFeatureConverter.Converters;
 using Umbraco.Community.LegacyFeatureConverter.Dtos;
 using Umbraco.Community.LegacyFeatureConverter.Models;
 using Umbraco.Community.LegacyFeatureConverter.Services;
@@ -28,6 +29,7 @@ public class LegacyConverterApiController : UmbracoApiController
     private readonly IConverterService _converterService;
     private readonly IConversionHistoryService _historyService;
     private readonly IConversionQueueService _queueService;
+    private readonly IMacroConverterQueryService _macroQueryService;
     private readonly ILogger<LegacyConverterApiController> _logger;
 
     /// <summary>
@@ -50,11 +52,13 @@ public class LegacyConverterApiController : UmbracoApiController
         IConverterService converterService,
         IConversionHistoryService historyService,
         IConversionQueueService queueService,
+        IMacroConverterQueryService macroQueryService,
         ILogger<LegacyConverterApiController> logger)
     {
         _converterService = converterService;
         _historyService = historyService;
         _queueService = queueService;
+        _macroQueryService = macroQueryService;
         _logger = logger;
     }
 
@@ -78,7 +82,9 @@ public class LegacyConverterApiController : UmbracoApiController
     }
 
     /// <summary>
-    /// Gets document types that would be affected by a specific converter.
+    /// Gets document types that would be affected by a specific property converter.
+    /// Returns 400 when the named converter is from a different family (e.g. macro);
+    /// callers should use <see cref="GetMacros"/> for macro converters.
     /// </summary>
     /// <param name="converterName">The name of the converter.</param>
     /// <returns>List of affected document types with property counts.</returns>
@@ -90,9 +96,15 @@ public class LegacyConverterApiController : UmbracoApiController
             if (string.IsNullOrWhiteSpace(converterName))
                 return BadRequest(new { error = "Converter name is required" });
 
-            var converter = _converterService.GetConverterByName(converterName);
-            if (converter == null)
+            var legacy = _converterService.GetLegacyConverterByName(converterName);
+            if (legacy == null)
                 return NotFound(new { error = $"Converter '{converterName}' not found" });
+
+            if (legacy is not IPropertyConverter)
+                return BadRequest(new
+                {
+                    error = $"Converter '{converterName}' is not a property converter; use GetMacros instead."
+                });
 
             var documentTypes = await _converterService.GetAffectedDocumentTypesAsync(converterName);
             return Ok(documentTypes);
@@ -101,6 +113,56 @@ public class LegacyConverterApiController : UmbracoApiController
         {
             _logger.LogError(ex, "Error getting document types for converter {ConverterName}", converterName);
             return StatusCode(500, new { error = "Failed to get document types", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Gets the macros referenced in scanned content for a macro converter. Powers the
+    /// wizard's macro-selection step. Returns 400 when the named converter is from a
+    /// different family.
+    /// </summary>
+    /// <param name="converterName">The name of the macro converter.</param>
+    /// <returns>List of macros with usage and definition-status info.</returns>
+    [HttpGet]
+    public async Task<IActionResult> GetMacros(string converterName)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(converterName))
+                return BadRequest(new { error = "Converter name is required" });
+
+            var legacy = _converterService.GetLegacyConverterByName(converterName);
+            if (legacy == null)
+                return NotFound(new { error = $"Converter '{converterName}' not found" });
+
+            if (legacy is not IMacroConverter)
+                return BadRequest(new
+                {
+                    error = $"Converter '{converterName}' is not a macro converter; use GetDocumentTypes instead."
+                });
+
+            var scan = await _macroQueryService.ScanForMacroUsageAsync();
+            // Macro is always non-null in the IMacro-driven scan; orphans aren't surfaced
+            // in the picker (they can't be converted without re-registering the IMacro).
+            var info = scan.AliasUsage
+                .Select(u => new MacroInfoDto
+                {
+                    Key = u.Macro.Key,
+                    Alias = u.Alias,
+                    Name = u.Macro.Name ?? u.Alias,
+                    Icon = "icon-settings-alt",
+                    UsageCount = u.UsageCount,
+                    RtePropertyCount = u.RtePropertyCount
+                })
+                .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new JsonResult(info, JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting macros for converter {ConverterName}", converterName);
+            return StatusCode(500, new { error = "Failed to get macros", details = ex.Message });
         }
     }
 
@@ -121,7 +183,8 @@ public class LegacyConverterApiController : UmbracoApiController
             if (string.IsNullOrWhiteSpace(request.ConverterType))
                 return BadRequest(new { error = "Converter type is required" });
 
-            var converter = _converterService.GetConverterByName(request.ConverterType);
+            // Look up across both families so macro converters can queue here too.
+            var converter = _converterService.GetLegacyConverterByName(request.ConverterType);
             if (converter == null)
                 return NotFound(new { error = $"Converter '{request.ConverterType}' not found" });
 
@@ -135,7 +198,9 @@ public class LegacyConverterApiController : UmbracoApiController
                 PublishAfterConversion = request.PublishAfterConversion,
                 PerformingUserKey = GetCurrentUserKey(),
                 Approach = request.Approach,
-                Plan = request.Plan
+                Plan = request.Plan,
+                SelectedMacroKeys = request.SelectedMacroKeys,
+                GenerateStubPartialViews = request.GenerateStubPartialViews
             };
 
             var queueItemId = await _queueService.EnqueueAsync(options);
@@ -172,7 +237,8 @@ public class LegacyConverterApiController : UmbracoApiController
             if (string.IsNullOrWhiteSpace(request.ConverterName))
                 return BadRequest(new { error = "Converter name is required" });
 
-            var converter = _converterService.GetConverterByName(request.ConverterName);
+            // Family-agnostic lookup so macro converters can compute plans too.
+            var converter = _converterService.GetLegacyConverterByName(request.ConverterName);
             if (converter == null)
                 return NotFound(new { error = $"Converter '{request.ConverterName}' not found" });
 

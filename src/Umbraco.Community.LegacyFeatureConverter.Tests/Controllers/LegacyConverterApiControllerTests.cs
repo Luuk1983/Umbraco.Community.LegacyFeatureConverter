@@ -16,6 +16,7 @@ public class LegacyConverterApiControllerTests
     private Mock<IConverterService> _converterServiceMock = null!;
     private Mock<IConversionHistoryService> _historyServiceMock = null!;
     private Mock<IConversionQueueService> _queueServiceMock = null!;
+    private Mock<IMacroConverterQueryService> _macroQueryServiceMock = null!;
     private Mock<ILogger<LegacyConverterApiController>> _loggerMock = null!;
     private LegacyConverterApiController _controller = null!;
 
@@ -25,12 +26,14 @@ public class LegacyConverterApiControllerTests
         _converterServiceMock = new Mock<IConverterService>();
         _historyServiceMock = new Mock<IConversionHistoryService>();
         _queueServiceMock = new Mock<IConversionQueueService>();
+        _macroQueryServiceMock = new Mock<IMacroConverterQueryService>();
         _loggerMock = new Mock<ILogger<LegacyConverterApiController>>();
 
         _controller = new LegacyConverterApiController(
             _converterServiceMock.Object,
             _historyServiceMock.Object,
             _queueServiceMock.Object,
+            _macroQueryServiceMock.Object,
             _loggerMock.Object);
 
         // Set up a default HttpContext so GetCurrentUserKey() doesn't throw
@@ -70,7 +73,7 @@ public class LegacyConverterApiControllerTests
     [TestMethod]
     public async Task GetDocumentTypes_WithUnknownConverter_ReturnsNotFound()
     {
-        _converterServiceMock.Setup(s => s.GetConverterByName("Unknown"))
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("Unknown"))
             .Returns((IPropertyConverter?)null);
 
         var result = await _controller.GetDocumentTypes("Unknown");
@@ -82,7 +85,7 @@ public class LegacyConverterApiControllerTests
     public async Task GetDocumentTypes_WithValidConverter_ReturnsOk()
     {
         var converterMock = new Mock<IPropertyConverter>();
-        _converterServiceMock.Setup(s => s.GetConverterByName("NC to BL"))
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("NC to BL"))
             .Returns(converterMock.Object);
         _converterServiceMock.Setup(s => s.GetAffectedDocumentTypesAsync(
                 "NC to BL", null, It.IsAny<CancellationToken>()))
@@ -116,7 +119,7 @@ public class LegacyConverterApiControllerTests
     [TestMethod]
     public async Task QueueConversion_WithUnknownConverter_ReturnsNotFound()
     {
-        _converterServiceMock.Setup(s => s.GetConverterByName("Unknown"))
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("Unknown"))
             .Returns((IPropertyConverter?)null);
 
         var request = new ConversionRequestDto { ConverterType = "Unknown" };
@@ -131,7 +134,7 @@ public class LegacyConverterApiControllerTests
     {
         var queueItemId = Guid.NewGuid();
         var converterMock = new Mock<IPropertyConverter>();
-        _converterServiceMock.Setup(s => s.GetConverterByName("NC to BL"))
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("NC to BL"))
             .Returns(converterMock.Object);
         _queueServiceMock.Setup(s => s.EnqueueAsync(
                 It.IsAny<ConversionOptions>(), It.IsAny<CancellationToken>()))
@@ -164,7 +167,7 @@ public class LegacyConverterApiControllerTests
     {
         var queueItemId = Guid.NewGuid();
         var converterMock = new Mock<IPropertyConverter>();
-        _converterServiceMock.Setup(s => s.GetConverterByName("NC to BL"))
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("NC to BL"))
             .Returns(converterMock.Object);
         _queueServiceMock.Setup(s => s.EnqueueAsync(
                 It.IsAny<ConversionOptions>(), It.IsAny<CancellationToken>()))
@@ -182,6 +185,114 @@ public class LegacyConverterApiControllerTests
         _queueServiceMock.Verify(s => s.EnqueueAsync(
             It.Is<ConversionOptions>(o => o.PublishAfterConversion == true),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task QueueConversion_WithMacroOptions_PersistsAllMacroFields()
+    {
+        var queueItemId = Guid.NewGuid();
+        var converterMock = new Mock<IMacroConverter>();
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("Macro to Rich Text Block"))
+            .Returns(converterMock.Object);
+        _queueServiceMock.Setup(s => s.EnqueueAsync(
+                It.IsAny<ConversionOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(queueItemId);
+
+        var macroKey = Guid.NewGuid();
+        var request = new ConversionRequestDto
+        {
+            ConverterType = "Macro to Rich Text Block",
+            SelectedMacroKeys = new[] { macroKey },
+            GenerateStubPartialViews = false
+        };
+
+        var result = await _controller.QueueConversion(request);
+
+        Assert.IsInstanceOfType<OkObjectResult>(result);
+        _queueServiceMock.Verify(s => s.EnqueueAsync(
+            It.Is<ConversionOptions>(o =>
+                o.SelectedMacroKeys != null
+                && o.SelectedMacroKeys.Length == 1
+                && o.SelectedMacroKeys[0] == macroKey
+                && o.GenerateStubPartialViews == false),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ===== GetMacros =====
+
+    [TestMethod]
+    public async Task GetMacros_WithMacroConverter_ReturnsMacroList()
+    {
+        var converterMock = new Mock<IMacroConverter>();
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("Macro to Rich Text Block"))
+            .Returns(converterMock.Object);
+
+        var knownMacro = new Mock<Umbraco.Cms.Core.Models.IMacro>();
+        knownMacro.Setup(m => m.Alias).Returns("contactForm");
+        knownMacro.Setup(m => m.Name).Returns("Contact Form");
+        knownMacro.Setup(m => m.Key).Returns(Guid.NewGuid());
+
+        var secondMacro = new Mock<Umbraco.Cms.Core.Models.IMacro>();
+        secondMacro.Setup(m => m.Alias).Returns("zeroUsage");
+        secondMacro.Setup(m => m.Name).Returns("Zero Usage");
+        secondMacro.Setup(m => m.Key).Returns(Guid.NewGuid());
+
+        _macroQueryServiceMock.Setup(s => s.ScanForMacroUsageAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MacroScanResult
+            {
+                AliasUsage = new List<MacroAliasUsage>
+                {
+                    new() { Alias = "contactForm", Macro = knownMacro.Object, UsageCount = 4, RtePropertyCount = 3 },
+                    new() { Alias = "zeroUsage", Macro = secondMacro.Object, UsageCount = 0, RtePropertyCount = 0 }
+                }
+            });
+
+        var result = await _controller.GetMacros("Macro to Rich Text Block");
+        var json = (JsonResult)result;
+        var list = (List<MacroInfoDto>)json.Value!;
+
+        Assert.AreEqual(2, list.Count);
+        Assert.AreEqual("Contact Form", list[0].Name);
+        Assert.AreEqual(4, list[0].UsageCount);
+        Assert.AreEqual("Zero Usage", list[1].Name);
+        Assert.AreEqual(0, list[1].UsageCount);
+    }
+
+    [TestMethod]
+    public async Task GetMacros_WithPropertyConverter_ReturnsBadRequest()
+    {
+        // Property converter cannot answer the macro-listing endpoint.
+        var converterMock = new Mock<IPropertyConverter>();
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("NC to BL"))
+            .Returns(converterMock.Object);
+
+        var result = await _controller.GetMacros("NC to BL");
+
+        Assert.IsInstanceOfType<BadRequestObjectResult>(result);
+    }
+
+    [TestMethod]
+    public async Task GetMacros_WithUnknownConverter_ReturnsNotFound()
+    {
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("Unknown"))
+            .Returns((Umbraco.Community.LegacyFeatureConverter.Converters.ILegacyFeatureConverter?)null);
+
+        var result = await _controller.GetMacros("Unknown");
+
+        Assert.IsInstanceOfType<NotFoundObjectResult>(result);
+    }
+
+    [TestMethod]
+    public async Task GetDocumentTypes_WithMacroConverter_ReturnsBadRequest()
+    {
+        // The complement of GetMacros — macro converter doesn't answer doc-type-listing.
+        var converterMock = new Mock<IMacroConverter>();
+        _converterServiceMock.Setup(s => s.GetLegacyConverterByName("Macro to RTB"))
+            .Returns(converterMock.Object);
+
+        var result = await _controller.GetDocumentTypes("Macro to RTB");
+
+        Assert.IsInstanceOfType<BadRequestObjectResult>(result);
     }
 
     // ===== GetQueueStatus =====
