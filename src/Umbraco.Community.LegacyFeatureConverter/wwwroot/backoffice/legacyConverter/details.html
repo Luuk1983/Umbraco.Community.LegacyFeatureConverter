@@ -61,16 +61,136 @@
                     </umb-box-content>
                 </umb-box>
 
+                <!-- Failures panel: surfaces per-item ErrorMessage from the serialized
+                     summary JSON. Independent of the ConversionLogs rows, so the user
+                     always sees what failed even if log persistence regressed. -->
+                <umb-box ng-if="vm.failures.length > 0">
+                    <umb-box-header>
+                        <span style="color: var(--uui-color-danger, #d42054); font-weight: bold;">
+                            <localize key="legacyConverter_failures">Failures</localize>
+                            ({{vm.failures.length}})
+                        </span>
+                    </umb-box-header>
+                    <umb-box-content>
+                        <uui-table>
+                            <uui-table-column style="width: 130px;"></uui-table-column>
+                            <uui-table-column style="width: 200px;"></uui-table-column>
+                            <uui-table-column></uui-table-column>
+                            <uui-table-head>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_itemType">Type</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="general_name">Name</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_errorMessage">Error</localize>
+                                </uui-table-head-cell>
+                            </uui-table-head>
+                            <uui-table-row ng-repeat="failure in vm.failures"
+                                           class="lfc-log--error">
+                                <uui-table-cell>
+                                    <uui-tag color="danger" look="secondary">{{failure.type}}</uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell>
+                                    {{failure.name}}
+                                    <small ng-if="failure.key" class="db text-muted">{{failure.key}}</small>
+                                </uui-table-cell>
+                                <uui-table-cell style="white-space: pre-wrap; word-break: break-word;">
+                                    {{failure.errorMessage}}
+                                </uui-table-cell>
+                            </uui-table-row>
+                        </uui-table>
+                    </umb-box-content>
+                </umb-box>
+
+                <!-- Skipped panel: items the converter intentionally left alone. Collapsed
+                     by default because the count can be large (one row per content node that
+                     had nothing to convert). Each row shows the reason taken from the
+                     in-memory ConversionInfo.Message (e.g. "No properties to convert"). -->
+                <umb-box ng-if="vm.skipped.length > 0">
+                    <umb-box-header>
+                        <a href="" ng-click="vm.toggleSkipped()" style="text-decoration: none; color: inherit;">
+                            <span style="font-weight: bold;">
+                                <localize key="legacyConverter_skipped">Skipped</localize>
+                                ({{vm.skipped.length}})
+                            </span>
+                            <small class="text-muted" style="margin-left: 8px;">
+                                {{vm.skippedExpanded ? 'Hide' : 'Show'}}
+                            </small>
+                        </a>
+                    </umb-box-header>
+                    <umb-box-content ng-if="vm.skippedExpanded">
+                        <uui-table>
+                            <uui-table-column style="width: 130px;"></uui-table-column>
+                            <uui-table-column style="width: 240px;"></uui-table-column>
+                            <uui-table-column></uui-table-column>
+                            <uui-table-head>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_itemType">Type</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="general_name">Name</localize>
+                                </uui-table-head-cell>
+                                <uui-table-head-cell>
+                                    <localize key="legacyConverter_reason">Reason</localize>
+                                </uui-table-head-cell>
+                            </uui-table-head>
+                            <uui-table-row ng-repeat="skip in vm.skipped">
+                                <uui-table-cell>
+                                    <uui-tag look="secondary">{{skip.type}}</uui-tag>
+                                </uui-table-cell>
+                                <uui-table-cell>
+                                    {{skip.name}}
+                                    <small ng-if="skip.key" class="db text-muted">{{skip.key}}</small>
+                                </uui-table-cell>
+                                <uui-table-cell style="white-space: pre-wrap; word-break: break-word;">
+                                    {{skip.message}}
+                                </uui-table-cell>
+                            </uui-table-row>
+                        </uui-table>
+                    </umb-box-content>
+                </umb-box>
+
                 <!-- Log entries -->
                 <umb-box>
                     <umb-box-header title-key="legacyConverter_logEntries">
                     </umb-box-header>
                     <umb-box-content>
+                        <!-- Level filter — defaults to "Errors" when this run has failures
+                             so the user lands on what matters instead of 100+ Info rows. -->
+                        <div ng-if="vm.logs.length > 0"
+                             class="lfc-log-filter"
+                             style="margin-bottom: 12px; display: flex; gap: 6px; align-items: center;">
+                            <small class="text-muted">Filter:</small>
+                            <uui-button ng-click="vm.setLogFilter('all')"
+                                        look="{{vm.logFilter === 'all' ? 'primary' : 'secondary'}}"
+                                        compact="true"
+                                        label="All ({{vm.logs.length}})"></uui-button>
+                            <uui-button ng-click="vm.setLogFilter('errors')"
+                                        look="{{vm.logFilter === 'errors' ? 'primary' : 'secondary'}}"
+                                        compact="true"
+                                        color="danger"
+                                        label="Errors"></uui-button>
+                            <uui-button ng-click="vm.setLogFilter('warnings')"
+                                        look="{{vm.logFilter === 'warnings' ? 'primary' : 'secondary'}}"
+                                        compact="true"
+                                        color="warning"
+                                        label="Warnings + Errors"></uui-button>
+                            <uui-button ng-click="vm.setLogFilter('info')"
+                                        look="{{vm.logFilter === 'info' ? 'primary' : 'secondary'}}"
+                                        compact="true"
+                                        label="Info"></uui-button>
+                        </div>
+
                         <umb-empty-state ng-if="vm.logs.length === 0" size="small">
                             <localize key="legacyConverter_noLogEntries">No log entries found.</localize>
                         </umb-empty-state>
+                        <umb-empty-state ng-if="vm.logs.length > 0 && vm.filteredLogs().length === 0" size="small">
+                            <localize key="legacyConverter_noLogEntriesForFilter">No log entries match the current filter.</localize>
+                        </umb-empty-state>
 
-                        <uui-table ng-if="vm.logs.length > 0">
+                        <uui-table ng-if="vm.filteredLogs().length > 0">
                             <uui-table-column style="width: 100px;"></uui-table-column>
                             <uui-table-column style="width: 140px;"></uui-table-column>
                             <uui-table-column style="width: 120px;"></uui-table-column>
@@ -89,7 +209,7 @@
                                     <localize key="legacyConverter_message">Message</localize>
                                 </uui-table-head-cell>
                             </uui-table-head>
-                            <uui-table-row ng-repeat="log in vm.logs"
+                            <uui-table-row ng-repeat="log in vm.filteredLogs()"
                                            ng-class="{'lfc-log--error': log.level === 'Error', 'lfc-log--warning': log.level === 'Warning'}">
                                 <uui-table-cell>
                                     <uui-tag ng-class="vm.getLogLevelClass(log.level)" look="secondary">

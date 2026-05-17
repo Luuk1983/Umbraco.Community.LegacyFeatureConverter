@@ -745,6 +745,113 @@ public class BasePropertyConverterTests
     }
 
     [TestMethod]
+    public async Task ConvertContentDataAsync_ContentOnlyDocType_DoesNotCountAsFailedWhenNoContent()
+    {
+        // Regression for the "14 failed but no Error rows" symptom in the uSync flow:
+        // ExecuteConversionAsync seeds result.DocumentTypes with one entry per doc type from
+        // BOTH the schema-update list AND the content-only list, with Success=false &&
+        // Skipped=false defaults. Phase 3 only processes the schema-update list, so
+        // content-only entries used to sit there with both flags false — counted as Failed
+        // in FailureCount with no Error row ever written.
+        //
+        // After the fix, content-only entries get Skipped=true (no content) or Success=true
+        // (content processed) at the end of Phase 4.
+        var converter = CreateConverter();
+        converter.ConvertPropertyValueHandler = (_, _) => Task.FromResult<object?>(null);
+
+        var docTypeKey = Guid.NewGuid();
+        var ptMock = new Mock<IPropertyType>();
+        ptMock.Setup(pt => pt.Alias).Returns("myProp");
+        ptMock.Setup(pt => pt.PropertyEditorAlias).Returns("Umbraco.NewTestEditor");
+        ptMock.Setup(pt => pt.DataTypeId).Returns(99);
+
+        var docTypeMock = new Mock<IContentType>();
+        docTypeMock.Setup(dt => dt.Id).Returns(1);
+        docTypeMock.Setup(dt => dt.Key).Returns(docTypeKey);
+        docTypeMock.Setup(dt => dt.Name).Returns("DocType 1");
+        docTypeMock.Setup(dt => dt.Alias).Returns("docType1");
+        docTypeMock.Setup(dt => dt.PropertyTypes).Returns(new[] { ptMock.Object });
+        docTypeMock.Setup(dt => dt.CompositionPropertyTypes).Returns(Enumerable.Empty<IPropertyType>());
+
+        _contentServiceMock.Setup(x => x.Count("docType1")).Returns(0);
+        long fetchTotal = 0;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out fetchTotal, null!))
+            .Returns(Enumerable.Empty<IContent>());
+
+        // Mimic ExecuteConversionAsync's seeding step for a content-only doc type
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        result.DocumentTypes.Add(new DocumentTypeConversionInfo
+        {
+            Key = docTypeKey, Name = "DocType 1", Alias = "docType1"
+        });
+
+        await converter.TestConvertContentDataAsync(
+            result,
+            documentTypes: new List<IContentType>(),
+            contentOnlyDocTypes: new List<IContentType> { docTypeMock.Object },
+            propertyAliasesToConvert: new Dictionary<int, HashSet<string>>(),
+            options: new ConversionOptions { IsTestRun = true });
+
+        var dtInfo = result.DocumentTypes.Single(d => d.Key == docTypeKey);
+        Assert.IsTrue(dtInfo.Skipped, "Content-only doc type with no content should be marked Skipped, not Failed.");
+        Assert.IsFalse(dtInfo.Success);
+        Assert.AreEqual(0, result.FailureCount, "FailureCount must not count untouched content-only doc-type placeholders as failures.");
+    }
+
+    [TestMethod]
+    public async Task ConvertContentDataAsync_ContentOnlyDocType_MarksSuccessWhenContentProcessed()
+    {
+        // Companion to the above: when there IS content to process under a content-only
+        // doc type, its DocumentTypes entry must be marked Success (not left as a ghost failure).
+        var converter = CreateConverter();
+        // Return a converted value so wasModified=true and the content row is saved
+        converter.ConvertPropertyValueHandler = (_, _) => Task.FromResult<object?>((object?)"converted");
+
+        var docTypeKey = Guid.NewGuid();
+        var ptMock = new Mock<IPropertyType>();
+        ptMock.Setup(pt => pt.Alias).Returns("myProp");
+        ptMock.Setup(pt => pt.PropertyEditorAlias).Returns("Umbraco.NewTestEditor");
+        ptMock.Setup(pt => pt.DataTypeId).Returns(99);
+        ptMock.Setup(pt => pt.Variations).Returns(ContentVariation.Nothing);
+
+        var docTypeMock = new Mock<IContentType>();
+        docTypeMock.Setup(dt => dt.Id).Returns(1);
+        docTypeMock.Setup(dt => dt.Key).Returns(docTypeKey);
+        docTypeMock.Setup(dt => dt.Name).Returns("DocType 1");
+        docTypeMock.Setup(dt => dt.Alias).Returns("docType1");
+        docTypeMock.Setup(dt => dt.PropertyTypes).Returns(new[] { ptMock.Object });
+        docTypeMock.Setup(dt => dt.CompositionPropertyTypes).Returns(Enumerable.Empty<IPropertyType>());
+
+        var prop = CreateInvariantPropertyMock("myProp", "[]", null);
+        var contentMock = CreateContentMock(100, prop.Object);
+
+        _contentServiceMock.Setup(x => x.Count("docType1")).Returns(1);
+        long fetchTotal = 1;
+        _contentServiceMock
+            .Setup(x => x.GetPagedOfType(1, 0, int.MaxValue, out fetchTotal, null!))
+            .Returns(new[] { contentMock.Object });
+
+        var result = new ConversionResult { ConversionId = Guid.NewGuid() };
+        result.DocumentTypes.Add(new DocumentTypeConversionInfo
+        {
+            Key = docTypeKey, Name = "DocType 1", Alias = "docType1"
+        });
+
+        await converter.TestConvertContentDataAsync(
+            result,
+            documentTypes: new List<IContentType>(),
+            contentOnlyDocTypes: new List<IContentType> { docTypeMock.Object },
+            propertyAliasesToConvert: new Dictionary<int, HashSet<string>>(),
+            options: new ConversionOptions { IsTestRun = true });
+
+        var dtInfo = result.DocumentTypes.Single(d => d.Key == docTypeKey);
+        Assert.IsTrue(dtInfo.Success, "Content-only doc type whose content was processed should be marked Success.");
+        Assert.IsFalse(dtInfo.Skipped);
+        Assert.AreEqual(0, result.FailureCount);
+    }
+
+    [TestMethod]
     public async Task ConvertContentForDocType_WhenContentSkipped_NoContentLogEntry()
     {
         // Arrange: converter returns null for all properties — content is not modified.

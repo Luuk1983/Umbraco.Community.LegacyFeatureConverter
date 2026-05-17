@@ -115,6 +115,12 @@
                                     <uui-tag ng-class="vm.getStatusClass(item.status)" look="secondary">
                                         {{item.status}}
                                     </uui-tag>
+                                    <uui-tag ng-if="item.failureCount > 0"
+                                             color="danger"
+                                             look="secondary"
+                                             title="{{item.failureCount}} item(s) failed during this run">
+                                        {{item.failureCount}} failed
+                                    </uui-tag>
                                 </uui-table-cell>
                                 <uui-table-cell>{{item.startedAt | date:'short'}}</uui-table-cell>
                                 <uui-table-cell>

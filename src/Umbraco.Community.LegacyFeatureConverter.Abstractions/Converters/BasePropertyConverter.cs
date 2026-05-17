@@ -354,7 +354,15 @@ public abstract class BasePropertyConverter : IPropertyConverter
                     var sourceDataType = _dataTypeService.GetDataType(property.DataTypeId);
                     if (sourceDataType == null)
                     {
-                        conversionInfo.ErrorMessage = "Source data type not found";
+                        // Previously this branch wrote no Error row, so the item ended up
+                        // counted as Failed in the summary with no matching entry in the
+                        // conversion log — opaque to the user. Surface it explicitly now.
+                        var msg = $"Source data type {property.DataTypeId} not found for property '{property.Name}'";
+                        conversionInfo.ErrorMessage = msg;
+
+                        await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Error,
+                            "DataType", msg, null, property.Name, cancellationToken: cancellationToken);
+
                         result.DataTypes.Add(conversionInfo);
                         continue;
                     }
@@ -381,10 +389,15 @@ public abstract class BasePropertyConverter : IPropertyConverter
                                 $"{(isTestRun ? "[DRY RUN] Would create" : "Created")} data type: {targetDataType.Name}",
                                 null, targetDataType.Name, sourceDataType.Key.ToString(),
                                 cancellationToken: cancellationToken);
+
+                            conversionInfo.Success = true;
                         }
                         else
                         {
                             targetDataType = existing;
+                            // Keep this item only as Skipped — previously the code also set
+                            // Success=true, which made the same item count in both SuccessCount
+                            // and SkippedCount in ConversionResult.
                             conversionInfo.Skipped = true;
 
                             await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Information,
@@ -394,7 +407,23 @@ public abstract class BasePropertyConverter : IPropertyConverter
                         }
 
                         dataTypeMap[property.DataTypeId] = targetDataType;
-                        conversionInfo.Success = true;
+                    }
+                    else
+                    {
+                        // CreateTargetDataTypeAsync returned null — e.g. the source data type
+                        // doesn't have the configuration shape this converter expects (an old
+                        // partial conversion, a misconfigured data type, etc.). Previously
+                        // this fell through silently with Success=false, Skipped=false, no
+                        // Error row. That's exactly the symptom the user hit: counted as
+                        // Failed with no explanation. Surface it explicitly.
+                        var msg = $"Could not create target data type for '{sourceDataType.Name}' " +
+                                  $"(editor '{sourceDataType.EditorAlias}', key {sourceDataType.Key}). " +
+                                  "The source configuration shape was not recognised by this converter.";
+                        conversionInfo.ErrorMessage = msg;
+
+                        await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Error,
+                            "DataType", msg, null, sourceDataType.Name, sourceDataType.Key.ToString(),
+                            cancellationToken: cancellationToken);
                     }
                 }
                 catch (Exception ex)
@@ -697,15 +726,51 @@ public abstract class BasePropertyConverter : IPropertyConverter
             totalContentCount += _contentService.Count(docType.Alias);
         }
 
-        // Process all doc types with cumulative progress tracking
+        // Process all doc types with cumulative progress tracking.
+        //
+        // Phase 3 marks DocumentTypes entries Success/Skipped for the schema-update list, but
+        // entries that came via the content-only list never go through Phase 3 — so without
+        // this step they'd sit with Success=false && Skipped=false and `FailureCount` would
+        // count them as ghost failures (exactly the user's "14 failed but no Error rows"
+        // symptom in the uSync flow where the plan has 0 schema-update + N content-only
+        // doc types). Track what we've touched here and reconcile after the loop.
+        var contentOnlyKeysProcessed = new HashSet<Guid>();
+        var contentCountsByDocType = new Dictionary<Guid, int>();
+
         var cumulativeProcessed = 0;
         foreach (var (docType, aliases) in docTypesToProcess)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            var before = result.ContentNodes.Count;
             cumulativeProcessed = await ConvertContentForDocTypeAsync(
                 result, docType, aliases, options, progress,
                 cumulativeProcessed, totalContentCount, cancellationToken);
+            var added = result.ContentNodes.Count - before;
+
+            contentOnlyKeysProcessed.Add(docType.Key);
+            contentCountsByDocType[docType.Key] = added;
+        }
+
+        // Reconcile DocumentTypes status for content-only doc types. A doc type whose schema
+        // didn't need changing in this run but whose content we did process is reported as
+        // Success (with a count). A doc type with no matching content is reported as Skipped.
+        foreach (var dtInfo in result.DocumentTypes)
+        {
+            if (dtInfo.Success || dtInfo.Skipped) continue;
+            if (!contentOnlyKeysProcessed.Contains(dtInfo.Key)) continue;
+
+            var contentCount = contentCountsByDocType.TryGetValue(dtInfo.Key, out var c) ? c : 0;
+            if (contentCount > 0)
+            {
+                dtInfo.Success = true;
+                dtInfo.Message = $"Processed {contentCount} content node{(contentCount == 1 ? "" : "s")} (schema already on target editor)";
+            }
+            else
+            {
+                dtInfo.Skipped = true;
+                dtInfo.Message = "Schema already on target editor; no content to process";
+            }
         }
     }
 
@@ -816,13 +881,24 @@ public abstract class BasePropertyConverter : IPropertyConverter
             }
             catch (Exception ex)
             {
+                // Build a message that includes the offending property alias / inner key when
+                // the exception carries that attribution (NestedContentConversionException).
+                // Without it the log row would only say "content X failed" without indicating
+                // WHERE inside the content's properties the conversion broke.
+                var message = ex is PropertyConversionException ncex
+                    ? $"Error converting content '{content.Name}' (ID {content.Id}), " +
+                      $"property '{ncex.PropertyAlias}'" +
+                      (ncex.InnerKey is null ? "" : $" → nested key '{ncex.InnerKey}'") +
+                      $": {ncex.Reason}. Value preview: {ncex.ValuePreview}"
+                    : $"Error converting content '{content.Name}' (ID {content.Id}): {ex.Message}";
+
                 _logger.LogError(ex, "Error converting content {ContentName} (ID: {ContentId})",
                     content.Name, content.Id);
-                contentInfo.ErrorMessage = ex.Message;
+                contentInfo.ErrorMessage = message;
 
                 await _historyService.LogEntryAsync(result.ConversionId, LogLevel.Error,
-                    "Content", $"Error converting content {content.Name}: {ex.Message}",
-                    ex.StackTrace, content.Name, content.Key.ToString(),
+                    "Content", message,
+                    ex.ToString(), content.Name, content.Key.ToString(),
                     cancellationToken: cancellationToken);
 
                 if (options.StopOnError)
@@ -918,8 +994,22 @@ public abstract class BasePropertyConverter : IPropertyConverter
                         {
                             var value = property.GetValue(culture);
                             if (value == null) continue;
-                            var converted = await ConvertPropertyValueAsync(value, property);
-                            if (converted != null) { hasUnconverted = true; break; }
+                            try
+                            {
+                                var converted = await ConvertPropertyValueAsync(value, property);
+                                if (converted != null) { hasUnconverted = true; break; }
+                            }
+                            catch (Exception)
+                            {
+                                // The converter throws now (rather than silently returning null)
+                                // when a stored value is broken — typically an NC-array sitting
+                                // against a Block-List editor from a previous half-completed run
+                                // or a uSync state. The Plan must still surface the doc type so
+                                // the user has a chance to re-run, instead of reporting "nothing
+                                // to convert".
+                                hasUnconverted = true;
+                                break;
+                            }
                         }
                         if (hasUnconverted) break;
                     }
